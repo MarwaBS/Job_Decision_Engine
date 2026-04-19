@@ -179,6 +179,29 @@ class TestUIDoesNotRecomputeScores:
             "only call evaluate_job() which calls the reasoner exactly once."
         )
 
+    def test_app_never_uses_mock_embedding_provider(self):
+        """Scoring determinism invariant.
+
+        `MockEmbeddingProvider` produces hash-based embeddings whose
+        cosine similarity differs from the real sentence-transformer's.
+        Using it in the UI path would change `semantic_similarity` and
+        therefore `apply_score` — creating two different score
+        behaviours depending on deployment environment.
+
+        The only correct provider in the UI is `SentenceTransformerProvider`.
+        The Docker image pre-downloads the model at build time.
+        Tests use the mock directly (passed as an argument), never
+        through the UI.
+        """
+        src = self._app_source()
+        assert "MockEmbeddingProvider" not in src, (
+            "streamlit_app/app.py references MockEmbeddingProvider. "
+            "The UI must never fall back to the mock — it changes "
+            "semantic_similarity and therefore the score. "
+            "If sentence-transformers is unavailable at runtime, the "
+            "app should fail loudly, not silently score differently."
+        )
+
 
 # ── README.md required sections ──────────────────────────────────────────────
 

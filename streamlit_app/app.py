@@ -11,15 +11,28 @@ Role: PRESENTATION LAYER ONLY. Per Step 5 hard rules:
   (sentence-transformers model, OpenAI client, Mongo client). It never
   caches decisions or signal values.
 
-Startup modes:
+Startup modes (INFORMATIONAL ONLY — scoring is deterministic across all):
 
     OPENAI_API_KEY present   + MONGODB_URI present        -> "Production"
     OPENAI_API_KEY present   + MONGODB_URI absent         -> "OpenAI + in-memory store"
     OPENAI_API_KEY absent    + MONGODB_URI present        -> "Mongo-backed demo (no LLM)"
     both absent                                           -> "Demo mode (in-memory, no LLM)"
 
-In every mode, the scorer is identical and fully deterministic. The LLM
-and Mongo are infrastructure, not decision logic.
+Deterministic-score invariant (enforced by always using the real
+embedding provider):
+
+    For a given (job, profile) input, the `apply_score` and `verdict`
+    are IDENTICAL across all four modes. The only things that change:
+
+    1. Persistence layer — decisions saved to Atlas vs session-only.
+       Same scoring either way.
+    2. LLM reasoning panel — rich text (OpenAI present) vs null
+       reasoning (OpenAI absent, llm_confidence=0.0 per architecture
+       §7). That zero IS the scored value in both deployments; the
+       LLM is never a hidden free parameter.
+
+The mock embedding provider from `src.signals.semantic` exists for
+HERMETIC TESTS ONLY and is never instantiated by the UI.
 """
 
 from __future__ import annotations
@@ -42,7 +55,6 @@ from src.llm.reasoning import (
 from src.schemas import CandidateProfile, DecisionResult, Seniority, Verdict
 from src.signals.semantic import (
     EmbeddingProvider,
-    MockEmbeddingProvider,
     SentenceTransformerProvider,
 )
 
@@ -65,40 +77,46 @@ def detect_mode() -> RuntimeMode:
     has_openai = bool(os.getenv("OPENAI_API_KEY"))
     has_mongo = bool(os.getenv("MONGODB_URI"))
 
+    # Embedding provider is ALWAYS the real SentenceTransformer — mock
+    # embeddings produce different semantic_similarity values and would
+    # change scoring across modes. Docker image pre-downloads the model
+    # at build time so this is always available in the HF Space.
+    embedding_kind = "SentenceTransformer (all-MiniLM-L6-v2)"
+
     if has_openai and has_mongo:
         return RuntimeMode(
             name="production",
             label="Production",
             banner_kind="success",
-            store_kind="MongoStore (Atlas)",
-            reasoner_kind="OpenAIReasoner (gpt-4o)",
-            embedding_kind="SentenceTransformer (all-MiniLM-L6-v2)",
+            store_kind="MongoStore (Atlas) — decisions persisted across sessions",
+            reasoner_kind="OpenAIReasoner (gpt-4o) — reasoning panel populated",
+            embedding_kind=embedding_kind,
         )
     if has_openai:
         return RuntimeMode(
             name="openai_only",
             label="OpenAI + in-memory store",
             banner_kind="info",
-            store_kind="InMemoryStore (session-only)",
-            reasoner_kind="OpenAIReasoner (gpt-4o)",
-            embedding_kind="SentenceTransformer (all-MiniLM-L6-v2)",
+            store_kind="InMemoryStore — session-only; restart loses decisions",
+            reasoner_kind="OpenAIReasoner (gpt-4o) — reasoning panel populated",
+            embedding_kind=embedding_kind,
         )
     if has_mongo:
         return RuntimeMode(
             name="mongo_only",
             label="Mongo-backed demo (no LLM)",
             banner_kind="warning",
-            store_kind="MongoStore (Atlas)",
-            reasoner_kind="FailingReasoner (LLM disabled — reasoning=None in every result)",
-            embedding_kind="MockEmbeddingProvider (hash-based, not a real model)",
+            store_kind="MongoStore (Atlas) — decisions persisted across sessions",
+            reasoner_kind="LLM disabled — reasoning=None, llm_confidence=0.0 per architecture §7",
+            embedding_kind=embedding_kind,
         )
     return RuntimeMode(
         name="demo",
         label="Demo mode",
         banner_kind="warning",
-        store_kind="InMemoryStore (session-only, resets on restart)",
-        reasoner_kind="FailingReasoner (LLM disabled — reasoning=None in every result)",
-        embedding_kind="MockEmbeddingProvider (hash-based, not a real model)",
+        store_kind="InMemoryStore — session-only; restart loses decisions",
+        reasoner_kind="LLM disabled — reasoning=None, llm_confidence=0.0 per architecture §7",
+        embedding_kind=embedding_kind,
     )
 
 
@@ -126,13 +144,21 @@ def _build_reasoner(mode_name: str) -> LLMReasoner:
 
 
 @st.cache_resource
-def _build_embedding_provider(mode_name: str) -> EmbeddingProvider:
-    if mode_name in ("production", "openai_only"):
-        try:
-            return SentenceTransformerProvider()
-        except Exception:
-            return MockEmbeddingProvider()
-    return MockEmbeddingProvider()
+def _build_embedding_provider() -> EmbeddingProvider:
+    """Always return the real SentenceTransformer.
+
+    NEVER falls back to a hash-based mock provider. Mock embeddings
+    differ from the real model's output, so using them in the UI would
+    change `semantic_similarity` and therefore `apply_score` — violating
+    the deterministic-score invariant across deployment modes. The
+    Docker image pre-downloads the model at build time, so in the HF
+    Space runtime this is always available.
+
+    For hermetic tests, individual tests construct a mock provider
+    directly and pass it into signal / orchestrator calls — this UI
+    helper is not used in tests.
+    """
+    return SentenceTransformerProvider()
 
 
 # ── Profile resolution (Mongo first, demo fallback) ──────────────────────────
@@ -201,7 +227,10 @@ def render_header(mode: RuntimeMode) -> None:
         f"**Mode: {mode.label}**\n\n"
         f"- Store: {mode.store_kind}\n"
         f"- Reasoner: {mode.reasoner_kind}\n"
-        f"- Embeddings: {mode.embedding_kind}"
+        f"- Embeddings: {mode.embedding_kind}\n\n"
+        f"**Scoring is identical across all modes.** Only the persistence "
+        f"layer (where decisions are saved) and the LLM reasoning panel "
+        f"change. The 5-signal weighted formula is deterministic."
     )
 
 
@@ -327,7 +356,7 @@ def main() -> None:
 
     store = _build_store(mode.name)
     reasoner = _build_reasoner(mode.name)
-    embedding_provider = _build_embedding_provider(mode.name)
+    embedding_provider = _build_embedding_provider()
     profile = resolve_profile(store)
 
     with st.sidebar:
