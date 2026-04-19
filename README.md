@@ -21,6 +21,12 @@ points). Decisions are persisted append-only to MongoDB. Evaluation of
 the system's own accuracy is **intentionally inert** until at least 50
 real application outcomes have been logged.
 
+> **Cold-start note (HuggingFace Space demo).** The first boot of the
+> Space downloads the `sentence-transformers/all-MiniLM-L6-v2` model
+> (~400 MB) and builds the Docker image. Expect 5–10 minutes on the very
+> first visit. Subsequent boots are near-instant — the model is baked into
+> the image at build time, not downloaded at request time.
+
 ## 1. What the system does
 
 This is not a resume tool. It is a **decision system**. The core is a
