@@ -37,5 +37,12 @@ openai==1.109.1
 # ── Config / profile seeding (Step 4) ────────────────────────────────────────
 pyyaml==6.0.2
 
+# ── UI (Step 5) ──────────────────────────────────────────────────────────────
+# Required at install-time even for the test suite — tests/test_app_smoke.py
+# imports streamlit_app/app.py which does `import streamlit as st` at module
+# top level. Pin matches a recent stable release; HF Space builds the same
+# version into the Docker image.
+streamlit==1.41.0
+
 # ── Testing ──────────────────────────────────────────────────────────────────
 pytest==9.0.2
