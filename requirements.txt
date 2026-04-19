@@ -27,7 +27,7 @@ sentence-transformers==3.4.1
 # pymongo is lazy-imported inside MongoStore; tests use InMemoryStore and
 # never need it. The pin matches the sibling high-pay-salary-predictor
 # project's production baseline.
-pymongo==4.10.1
+pymongo==4.16.0
 
 # ── LLM reasoning layer (Step 4) ─────────────────────────────────────────────
 # openai is lazy-imported inside OpenAIReasoner; tests use MockReasoner.
