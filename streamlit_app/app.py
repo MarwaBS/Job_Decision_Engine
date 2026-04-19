@@ -43,6 +43,18 @@ from typing import Literal
 
 import streamlit as st
 
+# IMPORTANT: set_page_config MUST be the first Streamlit command invoked
+# by this module. It lives at module top — before any decorators, before
+# any cached-resource registration — because Streamlit re-executes the
+# script on every interaction and the rule is "first st.* call wins".
+# Moving this inside a function that runs after cache_resource decorators
+# caused StreamlitSetPageConfigMustBeFirstCommandError on HF Space.
+st.set_page_config(
+    page_title="Job Decision Engine",
+    page_icon="⚖️",
+    layout="wide",
+)
+
 from src.config import ENGINE_VERSION, THRESHOLDS, WEIGHTS
 from src.db import InMemoryStore, MongoStore, Store
 from src.engine.orchestrator import evaluate_job
@@ -207,11 +219,7 @@ def resolve_profile(store: Store) -> CandidateProfile:
 
 
 def render_header(mode: RuntimeMode) -> None:
-    st.set_page_config(
-        page_title="Job Decision Engine",
-        page_icon="⚖️",
-        layout="wide",
-    )
+    # set_page_config lives at module top (first-command rule).
     st.title("Job Decision Engine")
     st.caption(
         "Deterministic scoring + bounded-signal LLM reasoning. "
