@@ -1,0 +1,55 @@
+# ── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ── Virtual envs ────────────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+.env
+
+# ── Secrets + candidate PII ─────────────────────────────────────────────────
+# profile.yaml is the developer seed for the candidate profile. Contains PII.
+# Persisted to MongoDB at runtime; the YAML itself never leaves the machine.
+profile.yaml
+profile.*.yaml
+*.env.local
+
+# ── Internal docs (private — stay local, never in the public repo) ──────────
+# These are the author's internal engineering + audit artefacts. They live
+# on disk for the author's own reference but must not enter the public repo.
+# Keeping them gitignored (not just `.dockerignored`) guarantees they also
+# never appear in git history, which is the only way to prevent them from
+# being recoverable via `git log` after a fresh clone.
+MEMORY/
+docs/
+EXECUTION_RULES.md
+AUDIT_STATE.md
+CLAUDE.md
+
+# Pre-existing clone of the public repo lives nested inside the working
+# tree — keep it out of this local git history.
+Job_Decision_Engine/
+
+# ── IDE / OS ────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ── Models / large binary artefacts ─────────────────────────────────────────
+*.joblib
+*.pkl
+*.bin
+*.safetensors

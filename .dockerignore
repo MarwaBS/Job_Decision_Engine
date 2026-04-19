@@ -1,0 +1,47 @@
+# Keep the image small + reproducible. These never belong in production.
+
+# Version control
+.git/
+.gitignore
+.gitattributes
+
+# Internal docs + audit trail (private — never in the image)
+MEMORY/
+docs/
+EXECUTION_RULES.md
+AUDIT_STATE.md
+CLAUDE.md
+
+# Local dev
+.venv/
+venv/
+env/
+.env
+.env.local
+profile.yaml
+profile.*.yaml
+
+# Tests — the image runs the app, not the test suite
+tests/
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Docker artefacts
+Dockerfile
+.dockerignore

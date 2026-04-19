@@ -1,0 +1,41 @@
+# Job Decision Engine — pinned runtime dependencies.
+#
+# Pins are exact (==) per the lesson from the sibling nyc-real-estate-predictor
+# project: loading pickled / trained artefacts under a different library
+# version can silently corrupt outputs. We ship the exact wheel that the
+# system was built + tested against.
+#
+# How to regenerate:
+#   1. make a clean venv: python -m venv .venv && .venv\Scripts\activate
+#   2. pip install -r requirements.txt
+#   3. python -m pytest tests/            (must pass)
+#   4. bump a version only when all tests are green.
+
+# ── Data contracts (Step 2 — core kernel) ────────────────────────────────────
+pydantic==2.12.5
+
+# ── Ingestion — URL scraping (Step 3, best-effort) ───────────────────────────
+requests==2.32.3
+beautifulsoup4==4.12.3
+
+# ── Semantic similarity signal (Step 3) ──────────────────────────────────────
+# Lazy-imported inside SentenceTransformerProvider. Tests use the mock
+# provider and do NOT need this installed — keeps CI fast and hermetic.
+sentence-transformers==3.4.1
+
+# ── Persistence layer (Step 4) ───────────────────────────────────────────────
+# pymongo is lazy-imported inside MongoStore; tests use InMemoryStore and
+# never need it. The pin matches the sibling high-pay-salary-predictor
+# project's production baseline.
+pymongo==4.10.1
+
+# ── LLM reasoning layer (Step 4) ─────────────────────────────────────────────
+# openai is lazy-imported inside OpenAIReasoner; tests use MockReasoner.
+# Pin matches the ResumeForge project's production baseline.
+openai==1.109.1
+
+# ── Config / profile seeding (Step 4) ────────────────────────────────────────
+pyyaml==6.0.2
+
+# ── Testing ──────────────────────────────────────────────────────────────────
+pytest==9.0.2
