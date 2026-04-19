@@ -222,11 +222,13 @@ class TestReadmeContract:
         assert "app_port: 7860" in readme
 
     @pytest.mark.parametrize("required_heading", [
-        "## 1. What the system does",
-        "## 2. Architecture",
-        "## 3. Decision formula",
-        "## 4. LLM boundary",
-        "## 5. Evaluation rule",
+        "## 1. The problem",
+        "## 2. How I use it",
+        "## 3. System design",
+        "## 4. The decision formula",
+        "## 5. LLM boundary",
+        "## 6. Evaluation and honest scope",
+        "## 7. Proof of correctness",
     ])
     def test_readme_has_required_section(self, required_heading):
         assert required_heading in self._readme(), (
