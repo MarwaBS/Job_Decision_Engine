@@ -12,7 +12,7 @@
 #   4. bump a version only when all tests are green.
 
 # ── Data contracts (Step 2 — core kernel) ────────────────────────────────────
-pydantic==2.12.5
+pydantic==2.13.2
 
 # ── Ingestion — URL scraping (Step 3, best-effort) ───────────────────────────
 requests==2.32.3
