@@ -16,7 +16,7 @@ pydantic==2.12.5
 
 # ── Ingestion — URL scraping (Step 3, best-effort) ───────────────────────────
 requests==2.32.3
-beautifulsoup4==4.12.3
+beautifulsoup4==4.14.3
 
 # ── Semantic similarity signal (Step 3) ──────────────────────────────────────
 # Lazy-imported inside SentenceTransformerProvider. Tests use the mock
