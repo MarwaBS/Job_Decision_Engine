@@ -349,9 +349,10 @@ def render_decision(decision: DecisionResult) -> None:
 def render_footer() -> None:
     st.divider()
     st.caption(
-        "This UI is a thin rendering layer. The scorer, signals, and LLM "
-        "boundary are covered by 240 unit tests. See ARCHITECTURE.md and "
-        "EXECUTION_RULES.md in the repo for the system contract."
+        "This UI is a thin rendering layer. The scorer, signals, decision "
+        "trace, LLM boundary, and append-only persistence are covered by "
+        "261 hermetic unit tests. See the public README for the system "
+        "contract."
     )
 
 
