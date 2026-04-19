@@ -1,0 +1,123 @@
+name: CI + Deploy to HuggingFace Space
+
+# GitHub = single source of truth. HF Space = deployed runtime mirror.
+# On every push to main: run privacy audit + 260-test suite, then (only
+# if both green) force-push the tree to the HF Space.
+#
+# Constraints enforced here:
+# - Tests must pass before deploy.
+# - Private artefacts (MEMORY/, docs/, EXECUTION_RULES.md, etc.) must not
+#   be tracked in git. The privacy-audit job fails loudly if they are.
+# - Deploy only fires on push to main, never on PRs (prevents accidental
+#   production pushes from fork PRs).
+# - HF_TOKEN is a GitHub repository secret (write-scoped HF token).
+# - OPENAI_API_KEY and MONGODB_URI are set on the HF Space side (Space
+#   Settings → Variables and secrets), NOT in this workflow. The engine
+#   detects their presence at boot via streamlit_app/app.py::detect_mode
+#   and surfaces the mode in the UI banner.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  HF_OWNER: MarwaBS
+  HF_SPACE_NAME: job-decision-engine
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  privacy-audit:
+    name: Privacy audit — no private artefacts in git
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fail if private paths are tracked by git
+        run: |
+          set -euo pipefail
+          PRIVATE_PATHS='^(MEMORY/|docs/|EXECUTION_RULES\.md$|AUDIT_STATE\.md$|CLAUDE\.md$|profile\.yaml$|profile\..*\.yaml$)'
+          LEAKED=$(git ls-files | grep -E "$PRIVATE_PATHS" || true)
+          if [ -n "$LEAKED" ]; then
+            echo "::error::Private artefact(s) committed to git. Fix gitignore and rewrite history:"
+            echo "$LEAKED"
+            exit 1
+          fi
+          echo "✓ No private artefacts tracked. Safe to build."
+
+  test:
+    name: Unit tests (260 hermetic tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install pinned runtime + test deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run pytest
+        run: python -m pytest tests/ -v --tb=short
+
+  deploy-hf:
+    name: Deploy to HuggingFace Space
+    runs-on: ubuntu-latest
+    needs: [privacy-audit, test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    timeout-minutes: 10
+    steps:
+      - name: Checkout with full history (needed for push)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Validate HF_TOKEN secret is configured
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ -z "${HF_TOKEN:-}" ]; then
+            echo "::error::HF_TOKEN secret is missing. Create a WRITE token at"
+            echo "  https://huggingface.co/settings/tokens"
+            echo "then add it as a repository secret named HF_TOKEN at"
+            echo "  https://github.com/${{ github.repository }}/settings/secrets/actions"
+            exit 1
+          fi
+          echo "✓ HF_TOKEN present"
+
+      - name: Push to HuggingFace Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          HF_URL="https://${HF_OWNER}:${HF_TOKEN}@huggingface.co/spaces/${HF_OWNER}/${HF_SPACE_NAME}"
+          git remote add hf "$HF_URL"
+          # --force is used deliberately: the HF Space is a DEPLOYED MIRROR,
+          # not a parallel dev line. GitHub main is the single source of
+          # truth; HF always matches main exactly.
+          git push --force hf main
+          echo "✓ Deployed to https://huggingface.co/spaces/${HF_OWNER}/${HF_SPACE_NAME}"
+
+      - name: Summary
+        run: |
+          echo "### Deployment" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Space: [${HF_OWNER}/${HF_SPACE_NAME}](https://huggingface.co/spaces/${HF_OWNER}/${HF_SPACE_NAME})" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Commit: \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Build status: watch the Space page — Docker rebuild takes ~5-10 min on first deploy, ~2 min after." >> "$GITHUB_STEP_SUMMARY"
