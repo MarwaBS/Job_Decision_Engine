@@ -1,7 +1,7 @@
 name: CI + Deploy to HuggingFace Space
 
 # GitHub = single source of truth. HF Space = deployed runtime mirror.
-# On every push to main: run privacy audit + 260-test suite, then (only
+# On every push to main: run privacy audit + 263-test suite, then (only
 # if both green) force-push the tree to the HF Space.
 #
 # Constraints enforced here:
@@ -52,7 +52,7 @@ jobs:
           echo "✓ No private artefacts tracked. Safe to build."
 
   test:
-    name: Unit tests (260 hermetic tests)
+    name: Unit tests (263 hermetic tests)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

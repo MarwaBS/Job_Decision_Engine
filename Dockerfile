@@ -17,7 +17,7 @@
 # - No mutation of /app at container start.
 # - Provider selection is surfaced in the UI; no hidden switching.
 
-FROM python:3.14-slim-bookworm
+FROM python:3.12-slim-bookworm
 
 # HF Spaces require uid 1000 to own /home/user/app. Create the user first.
 RUN useradd -m -u 1000 user
