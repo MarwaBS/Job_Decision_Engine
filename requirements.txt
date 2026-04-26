@@ -35,7 +35,7 @@ pymongo==4.16.0
 openai==1.109.1
 
 # ── Config / profile seeding (Step 4) ────────────────────────────────────────
-pyyaml==6.0.2
+pyyaml==6.0.3
 
 # ── UI (Step 5) ──────────────────────────────────────────────────────────────
 # Required at install-time even for the test suite — tests/test_app_smoke.py
