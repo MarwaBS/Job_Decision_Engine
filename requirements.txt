@@ -42,7 +42,7 @@ pyyaml==6.0.2
 # imports streamlit_app/app.py which does `import streamlit as st` at module
 # top level. Pin matches a recent stable release; HF Space builds the same
 # version into the Docker image.
-streamlit==1.41.0
+streamlit==1.56.0
 
 # ── Testing ──────────────────────────────────────────────────────────────────
 pytest==9.0.3
