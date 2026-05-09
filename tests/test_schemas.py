@@ -167,5 +167,16 @@ class TestDecisionTrace:
 
 
 def test_verdict_values_locked():
-    """Architecture §6 defines exactly 4 verdicts. Adding one is an ADR change."""
-    assert {v.value for v in Verdict} == {"PRIORITY", "APPLY", "REVIEW", "SKIP"}
+    """The verdict set is locked. Adding/removing one is an ADR-level change.
+
+    Four fit-signal verdicts (architecture §6 thresholds): PRIORITY, APPLY,
+    REVIEW, SKIP. Plus one orthogonal input-quality verdict: PARSE_FAILURE
+    (added under BUG-004 — distinct axis, no apply_score, semantic "N/A").
+    """
+    assert {v.value for v in Verdict} == {
+        "PRIORITY",
+        "APPLY",
+        "REVIEW",
+        "SKIP",
+        "PARSE_FAILURE",
+    }

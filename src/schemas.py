@@ -24,12 +24,24 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 
 class Verdict(str, Enum):
-    """Final decision output. Architecture §6 thresholds."""
+    """Final decision output.
+
+    Two orthogonal axes:
+
+    - Fit-signal verdicts (architecture §6 thresholds, derived from apply_score):
+        PRIORITY, APPLY, REVIEW, SKIP.
+    - Input-quality verdict (orthogonal — no apply_score is computed):
+        PARSE_FAILURE. Returned when the JD could not be parsed reliably
+        enough to score (parse_confidence < MIN_PARSE_CONFIDENCE). The
+        `apply_score` on a PARSE_FAILURE result is `None`, not 0.0 — the
+        score is undefined, not "0% match" (BUG-004).
+    """
 
     PRIORITY = "PRIORITY"
     APPLY = "APPLY"
     REVIEW = "REVIEW"
     SKIP = "SKIP"
+    PARSE_FAILURE = "PARSE_FAILURE"
 
 
 class FailureMode(str, Enum):
@@ -189,7 +201,10 @@ class DecisionResult(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    apply_score: float = Field(ge=0.0, le=100.0)
+    # `None` only on the PARSE_FAILURE path: the JD could not be parsed
+    # reliably enough to score, so the score is semantically undefined.
+    # All fit-signal verdicts (PRIORITY/APPLY/REVIEW/SKIP) carry a float.
+    apply_score: float | None = Field(default=None, ge=0.0, le=100.0)
     verdict: Verdict
     signals: Signals
     weights: Weights

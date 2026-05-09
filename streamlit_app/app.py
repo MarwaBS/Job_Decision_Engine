@@ -250,14 +250,23 @@ def render_decision(decision: DecisionResult) -> None:
     # ── Verdict card ─────────────────────────────────────────────────────
     col_score, col_verdict, col_engine = st.columns([1, 1, 1])
 
-    col_score.metric(
-        label="Apply score",
-        value=f"{decision.apply_score:.1f} / 100",
-        delta=(
-            f"nearest boundary: {trace.nearest_threshold_distance:.1f} pts"
-            + (" (near!)" if trace.near_threshold_flag else "")
-        ),
-    )
+    if decision.apply_score is None:
+        # PARSE_FAILURE path (BUG-004): the JD could not be parsed reliably
+        # enough to score, so the score is undefined — render "N/A — parse
+        # failure" rather than misleading users with "0.0/100".
+        col_score.metric(
+            label="Apply score",
+            value="N/A — parse failure",
+        )
+    else:
+        col_score.metric(
+            label="Apply score",
+            value=f"{decision.apply_score:.1f} / 100",
+            delta=(
+                f"nearest boundary: {trace.nearest_threshold_distance:.1f} pts"
+                + (" (near!)" if trace.near_threshold_flag else "")
+            ),
+        )
     col_verdict.metric(
         label="Verdict",
         value=decision.verdict.value,
