@@ -64,12 +64,16 @@ def score(
         )
 
     if signals.parse_confidence < MIN_PARSE_CONFIDENCE:
+        # Input-quality verdict, NOT a fit-signal verdict (BUG-004).
+        # apply_score is None because the score is undefined when the JD
+        # could not be parsed — "0.0/100 REVIEW" was misread as "0% match"
+        # by users when the truth was "we could not parse the JD".
         return _short_circuit(
             signals=signals,
             weights=weights,
             thresholds=thresholds,
-            apply_score=0.0,
-            verdict=Verdict.REVIEW,
+            apply_score=None,
+            verdict=Verdict.PARSE_FAILURE,
             dominant_signal="low_parse_confidence",
             failure_mode=FailureMode.LOW_PARSE_CONFIDENCE,
         )
@@ -209,18 +213,29 @@ def _short_circuit(
     signals: Signals,
     weights: Weights,
     thresholds: Thresholds,
-    apply_score: float,
+    apply_score: float | None,
     verdict: Verdict,
     dominant_signal: str,
     failure_mode: FailureMode,
 ) -> DecisionResult:
-    """Build a DecisionResult for hard-filter paths (dealbreaker / low parse).
+    """Build a DecisionResult for hard-filter paths (dealbreaker / parse failure).
 
     The weighted sum is NOT computed when a hard filter fires — that's the
     whole point of a hard filter. But we still populate the decision_trace
     with zero-sensitivity placeholders so downstream consumers can treat
     every DecisionResult uniformly.
+
+    `apply_score` is `None` on the PARSE_FAILURE path (score is undefined
+    when the JD could not be parsed) and 0.0 on the dealbreaker path
+    (score is meaningfully zero — the candidate is filtered out).
+    `nearest_threshold_distance` is also undefined for PARSE_FAILURE; we
+    record 0.0 there as a placeholder to satisfy the schema bound.
     """
+    nearest = (
+        _nearest_threshold_distance(apply_score, thresholds)
+        if apply_score is not None
+        else 0.0
+    )
     trace = DecisionTrace(
         dominant_signal=dominant_signal,  # type: ignore[arg-type]
         failure_mode_detected=failure_mode,
@@ -229,7 +244,7 @@ def _short_circuit(
             if_skills_boosted_plus_10pct=0.0,
             if_experience_removed_score=0.0,
         ),
-        nearest_threshold_distance=_nearest_threshold_distance(apply_score, thresholds),
+        nearest_threshold_distance=nearest,
         near_threshold_flag=False,
     )
     return DecisionResult(

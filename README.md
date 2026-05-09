@@ -108,8 +108,15 @@ the cover letter and emphasizing the gap-mitigation in the email body.
 |---|---|
 | **PRIORITY** (≥80) | Apply same day. Use the talking points; address gaps in cover letter. |
 | **APPLY** (65–80) | Apply within the week. Read the trace first — if `near_threshold_flag = True` (within 3 points of REVIEW), check the LLM gaps before drafting. |
-| **REVIEW** (50–65 OR low parse confidence OR dealbreaker hit) | Read the JD manually. The system flags this when it can't be confident. About 30% of my real-world JDs land here. |
+| **REVIEW** (50–65 OR dealbreaker hit on a borderline score) | Read the JD manually. The system flags this when it can't be confident. About 30% of my real-world JDs land here. |
 | **SKIP** (<50) | Trust the system. Move on. |
+| **PARSE_FAILURE** (orthogonal — not a score tier) | The JD couldn't be parsed reliably (`parse_confidence < 0.5`). `apply_score` is `None` (not 0) — score is undefined, not "0% match". Re-paste a cleaner copy of the JD or read it manually. |
+
+Note: PRIORITY/APPLY/REVIEW/SKIP are **fit-signal** verdicts derived from
+`apply_score`. PARSE_FAILURE is an **input-quality** verdict on a separate
+axis — a JD whose text is unparseable is not "a 0% match", it's
+unscorable. The two distinctions lead to different next steps, so they
+are reported as different verdicts.
 
 The audit log is in MongoDB Atlas. Every decision has its signal vector,
 weights, thresholds version, engine version, and (when LLM ran) the raw
@@ -153,7 +160,7 @@ contract.
 Hard filters (applied BEFORE the weighted sum):
 
 - `dealbreaker_hit == True`        → verdict `SKIP` (score = 0)
-- `parse_confidence < 0.5`          → verdict `REVIEW` (score = 0)
+- `parse_confidence < 0.5`          → verdict `PARSE_FAILURE` (score = `None`, undefined)
 
 Otherwise:
 
@@ -171,7 +178,7 @@ validator). The weights are **priors, not learned parameters** —
 defensible per row, intentionally not fit to data. They will be retuned
 only when at least 50 real outcomes accumulate.
 
-Verdict thresholds:
+Verdict thresholds (fit-signal verdicts, when a numeric `apply_score` exists):
 
 | Score range    | Verdict    |
 |----------------|------------|
@@ -179,6 +186,9 @@ Verdict thresholds:
 | `65 ≤ s < 80`  | `APPLY`    |
 | `50 ≤ s < 65`  | `REVIEW`   |
 | `score < 50`   | `SKIP`     |
+
+`PARSE_FAILURE` sits on an orthogonal axis: when the JD cannot be parsed,
+`apply_score` is `None` and no threshold mapping applies.
 
 Both weights and thresholds version are stored on every persisted
 decision document, so a decision from today stays reproducible even if

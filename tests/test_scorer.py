@@ -126,13 +126,33 @@ class TestHardFilters:
         assert r.decision_trace.failure_mode_detected == FailureMode.DEALBREAKER_HIT
         assert r.decision_trace.dominant_signal == "dealbreaker"
 
-    def test_low_parse_confidence_forces_review(self):
-        """Below-threshold parse confidence → REVIEW, not SKIP."""
+    def test_low_parse_confidence_returns_parse_failure_with_none_score(self):
+        """Below-threshold parse confidence → PARSE_FAILURE with apply_score=None.
+
+        BUG-004: previously this path returned verdict=REVIEW + apply_score=0.0,
+        which users read as "0% match" when the truth was "we could not parse
+        the JD". PARSE_FAILURE is an input-quality verdict, orthogonal to the
+        4-tier fit-signal map (PRIORITY/APPLY/REVIEW/SKIP), and apply_score is
+        None because the score is undefined when input parsing failed.
+        """
         s = _strong_signals(parse_confidence=0.3)
         r = score(s)
-        assert r.verdict == Verdict.REVIEW
-        assert r.apply_score == 0.0
+        assert r.verdict == Verdict.PARSE_FAILURE
+        assert r.apply_score is None
         assert r.decision_trace.failure_mode_detected == FailureMode.LOW_PARSE_CONFIDENCE
+
+    def test_parse_failure_distinct_from_review(self):
+        """PARSE_FAILURE must NOT collapse into REVIEW (BUG-004 regression guard).
+
+        REVIEW is a fit-signal verdict (apply_score in [50, 65)). PARSE_FAILURE
+        is an input-quality verdict with no apply_score at all. They mean
+        different things and must be representable independently.
+        """
+        s = _strong_signals(parse_confidence=0.0)
+        r = score(s)
+        assert r.verdict is Verdict.PARSE_FAILURE
+        assert r.verdict is not Verdict.REVIEW
+        assert r.apply_score is None
 
     def test_parse_confidence_at_threshold_does_not_trigger(self):
         """Exactly at the min threshold → hard filter does NOT fire.
@@ -142,13 +162,16 @@ class TestHardFilters:
         s = _strong_signals(parse_confidence=0.5)
         r = score(s)
         assert r.decision_trace.failure_mode_detected is None
-        assert r.verdict != Verdict.REVIEW or r.apply_score > 0
+        assert r.verdict != Verdict.PARSE_FAILURE
+        assert r.apply_score is not None and r.apply_score > 0
 
     def test_dealbreaker_takes_precedence_over_low_parse(self):
-        """When both hard filters would fire, dealbreaker (SKIP) wins over REVIEW."""
+        """When both hard filters would fire, dealbreaker (SKIP) wins over PARSE_FAILURE."""
         s = _strong_signals(dealbreaker_hit=True, parse_confidence=0.1)
         r = score(s)
         assert r.verdict == Verdict.SKIP
+        # Dealbreaker path keeps apply_score=0.0 (filtered, not unscorable).
+        assert r.apply_score == 0.0
 
 
 # ── Verdict boundaries (architecture §6) ─────────────────────────────────────
