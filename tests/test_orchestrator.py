@@ -164,15 +164,21 @@ On-site only in NYC. 5+ years Python, PyTorch.
         assert d.verdict == Verdict.SKIP
         assert d.signals.dealbreaker_hit is True
 
-    def test_low_parse_confidence_forces_review(self):
-        """Empty JD → parse_confidence=0 → REVIEW. LLM can't rescue it."""
+    def test_low_parse_confidence_forces_parse_failure(self):
+        """Empty JD → parse_confidence=0 → PARSE_FAILURE. LLM can't rescue it.
+
+        BUG-004: this path used to return REVIEW with apply_score=0.0, which
+        users misread as "0% match". It now returns the PARSE_FAILURE input-
+        quality verdict with apply_score=None.
+        """
         store = InMemoryStore()
         d = evaluate_job(
             "",  # empty → parse_confidence=0
             _marwa(),
             store=store, reasoner=MockReasoner(llm_confidence=1.0),
         )
-        assert d.verdict == Verdict.REVIEW
+        assert d.verdict == Verdict.PARSE_FAILURE
+        assert d.apply_score is None
 
 
 # ── compute_role_level_fit ───────────────────────────────────────────────────
