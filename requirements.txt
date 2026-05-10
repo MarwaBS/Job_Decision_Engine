@@ -32,7 +32,7 @@ pymongo==4.17.0
 # ── LLM reasoning layer (Step 4) ─────────────────────────────────────────────
 # openai is lazy-imported inside OpenAIReasoner; tests use MockReasoner.
 # Pin matches the ResumeForge project's production baseline.
-openai==1.109.1
+openai==2.36.0
 
 # ── Config / profile seeding (Step 4) ────────────────────────────────────────
 pyyaml==6.0.3
