@@ -49,6 +49,13 @@ Two real examples from my own usage. Both JDs are reproducible test
 fixtures (in the repo); the screenshots / scores below are exactly what
 the system returns for those inputs.
 
+> *Snapshot note:* the example outputs and the "4.3 years" / "5.5 years"
+> figures below were captured against my profile as it stood when these
+> runs were recorded. My current `profile.yaml` has `years_experience: 6`;
+> re-running the examples today would shift the experience-derived numbers
+> accordingly. The verdicts (REVIEW for Example A, PRIORITY for Example B)
+> are unchanged.
+
 ### Example A — Adobe Senior ML Engineer (prose JD)
 
 I pasted Adobe's "Platform & AI Engineer" posting as-is. The JD is a
