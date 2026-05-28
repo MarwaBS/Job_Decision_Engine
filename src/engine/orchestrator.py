@@ -49,7 +49,6 @@ from src.schemas import (
 from src.signals.experience import compute_experience_match
 from src.signals.semantic import (
     EmbeddingProvider,
-    MockEmbeddingProvider,
     compute_semantic_similarity,
 )
 from src.signals.skills import compute_skills_match
@@ -103,7 +102,7 @@ def evaluate_job(
     *,
     store: Store,
     reasoner: LLMReasoner,
-    embedding_provider: EmbeddingProvider | None = None,
+    embedding_provider: EmbeddingProvider,
 ) -> DecisionResult:
     """End-to-end: raw JD text → scored, explained, persisted DecisionResult.
 
@@ -115,9 +114,12 @@ def evaluate_job(
             `upsert_job` + `insert_decision`.
         reasoner: LLM reasoner. A `FailingReasoner` is valid — the
             orchestrator will catch and substitute the null-reasoning path.
-        embedding_provider: Override for the semantic-similarity provider.
-            Defaults to `MockEmbeddingProvider` — in production the caller
-            SHOULD pass `SentenceTransformerProvider()`.
+        embedding_provider: Semantic-similarity provider — REQUIRED.
+            Production callers pass `SentenceTransformerProvider()` (the
+            Streamlit app constructs this at boot). Tests pass
+            `MockEmbeddingProvider()` directly. There is no default —
+            silent fallback to a mock provider would change scoring
+            depending on whether the caller remembered to pass it.
 
     Returns:
         A persisted `DecisionResult` with `reasoning` populated when the
@@ -132,7 +134,7 @@ def evaluate_job(
     exp_s = compute_experience_match(job.parsed, profile)
     sem_s = compute_semantic_similarity(
         job.parsed, profile,
-        provider=embedding_provider or MockEmbeddingProvider(),
+        provider=embedding_provider,
     )
     role_s = compute_role_level_fit(job.parsed, profile)
 

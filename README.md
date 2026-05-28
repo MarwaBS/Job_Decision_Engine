@@ -262,11 +262,11 @@ self-imposed constraint is the integrity claim of the project.
 The above is only credible if the system actually behaves the way the
 spec says. Three layers of evidence in the repo:
 
-- **261 hermetic unit tests** covering schemas, the deterministic
+- **267 hermetic unit tests** covering schemas, the deterministic
   scorer, the parser, every signal, persistence (with append-only
   contract), the LLM Protocol seam (with retry-or-fallback), the
-  orchestrator end-to-end, and the README contract itself. Runtime: ~2
-  seconds. No network, no model downloads.
+  orchestrator end-to-end, and the README contract itself. Runtime: ~1–2
+  seconds on a developer laptop. No network, no model downloads.
 - **Cross-environment determinism verified to 1e-9 precision** across
   local pytest, GitHub Actions CI, and the live HuggingFace Space. For
   identical `(JD, profile)` input, the `apply_score` and `verdict` are
@@ -274,7 +274,7 @@ spec says. Three layers of evidence in the repo:
   to the deterministic core: `0.0`. (LLM output is stochastic but
   bounded at 25% weight and captured per-decision for replay.)
 - **CI-enforced architectural invariants** in `.github/workflows/ci.yml`:
-  three-job gate (privacy audit · 261-test suite · auto-deploy to HF
+  three-job gate (privacy audit · 267-test suite · auto-deploy to HF
   Space). Privacy audit fails if any internal artefact leaks into git.
   Tests gate the deploy. Branch protection on `main` enforces the
   whole pipeline.
