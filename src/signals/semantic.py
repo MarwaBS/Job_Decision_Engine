@@ -106,16 +106,20 @@ def compute_semantic_similarity(
     job: ParsedJob,
     profile: CandidateProfile,
     *,
-    provider: EmbeddingProvider | None = None,
+    provider: EmbeddingProvider,
 ) -> float:
     """Cosine similarity between the JD and the candidate summary, ∈ [0, 1].
 
     Args:
         job: Parsed job description.
         profile: Candidate profile with a `summary` field.
-        provider: Embedding provider. Defaults to `MockEmbeddingProvider`
-            for hermetic tests; production callers MUST pass an instance of
-            `SentenceTransformerProvider` or another real provider.
+        provider: Embedding provider — REQUIRED. Production callers must
+            construct `SentenceTransformerProvider()`. Tests must construct
+            `MockEmbeddingProvider()` directly and pass it in. There is no
+            default — silently falling back to a mock provider in
+            production would change `semantic_similarity` and therefore
+            `apply_score`, violating the deterministic-score invariant
+            documented in `streamlit_app/app.py::detect_mode`.
 
     Returns:
         A value in [0, 1]. Cosine similarity is natively in [-1, 1]; we map
@@ -125,9 +129,6 @@ def compute_semantic_similarity(
     The function is pure relative to the provider — for a given
     (provider, job, profile) it is deterministic.
     """
-    if provider is None:
-        provider = MockEmbeddingProvider()
-
     job_text = _job_to_text(job)
     profile_text = profile.summary
 
