@@ -63,7 +63,10 @@ class TestProviderProtocol:
 
 class TestSemanticSimilarity:
     def test_returns_float_in_zero_one(self):
-        score = compute_semantic_similarity(_job(), _profile("ML engineer"))
+        score = compute_semantic_similarity(
+            _job(), _profile("ML engineer"),
+            provider=MockEmbeddingProvider(),
+        )
         assert 0.0 <= score <= 1.0
 
     def test_determinism_with_shared_provider(self):
@@ -72,11 +75,17 @@ class TestSemanticSimilarity:
         b = compute_semantic_similarity(_job(), _profile("x"), provider=provider)
         assert a == b
 
-    def test_determinism_without_shared_provider(self):
-        """Default provider path: two calls should still be deterministic
-        because MockEmbeddingProvider is hash-based."""
-        a = compute_semantic_similarity(_job(), _profile("x"))
-        b = compute_semantic_similarity(_job(), _profile("x"))
+    def test_determinism_with_fresh_provider_per_call(self):
+        """Two separately-constructed MockEmbeddingProvider instances must
+        produce identical embeddings because the mock is hash-based and
+        stateless. This is the property that lets tests construct ad-hoc
+        providers without coordinating instances."""
+        a = compute_semantic_similarity(
+            _job(), _profile("x"), provider=MockEmbeddingProvider(),
+        )
+        b = compute_semantic_similarity(
+            _job(), _profile("x"), provider=MockEmbeddingProvider(),
+        )
         assert a == b
 
     def test_identical_texts_score_one(self):
@@ -86,9 +95,19 @@ class TestSemanticSimilarity:
         # _job_to_text on this job: "identical"
         # Profile summary set to the same string.
         profile = _profile("identical")
-        # Use a provider that maps text → same vector
-        score = compute_semantic_similarity(job, profile)
+        score = compute_semantic_similarity(
+            job, profile, provider=MockEmbeddingProvider(),
+        )
         assert score == pytest.approx(1.0, abs=1e-9)
+
+    def test_missing_provider_raises_type_error(self):
+        """Regression: removing the silent-mock-fallback default means
+        calling without `provider=` raises TypeError. This is the
+        guardrail against any future production caller accidentally
+        getting hash-based mock embeddings instead of real ones.
+        See HIGH #3 / Phase 2 audit (2026-05-28)."""
+        with pytest.raises(TypeError):
+            compute_semantic_similarity(_job(), _profile("x"))  # type: ignore[call-arg]
 
     def test_accepts_injected_provider(self):
         class ZeroProvider:

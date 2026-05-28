@@ -28,6 +28,17 @@ from src.schemas import (
     Seniority,
     Verdict,
 )
+from src.signals.semantic import MockEmbeddingProvider
+
+
+def _mock_embeddings() -> MockEmbeddingProvider:
+    """Fresh deterministic mock embedder for one test call.
+
+    `compute_semantic_similarity` requires an explicit provider — there is
+    no default. Tests construct their own here; the production Streamlit
+    app constructs `SentenceTransformerProvider()` at boot.
+    """
+    return MockEmbeddingProvider()
 
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
@@ -67,6 +78,7 @@ class TestHappyPath:
         d = evaluate_job(
             STRONG_JD, _marwa(),
             store=store, reasoner=MockReasoner(llm_confidence=0.8),
+            embedding_provider=_mock_embeddings(),
         )
         assert d.verdict in {Verdict.APPLY, Verdict.PRIORITY}
 
@@ -75,6 +87,7 @@ class TestHappyPath:
         d = evaluate_job(
             STRONG_JD, _marwa(),
             store=store, reasoner=MockReasoner(llm_confidence=0.8),
+            embedding_provider=_mock_embeddings(),
         )
         assert d.reasoning is not None
         assert "strengths" in d.reasoning
@@ -85,12 +98,13 @@ class TestHappyPath:
         d = evaluate_job(
             STRONG_JD, _marwa(),
             store=store, reasoner=MockReasoner(llm_confidence=0.7),
+            embedding_provider=_mock_embeddings(),
         )
         assert d.signals.llm_confidence == pytest.approx(0.7)
 
     def test_persists_one_job_and_one_decision(self):
         store = InMemoryStore()
-        evaluate_job(STRONG_JD, _marwa(), store=store, reasoner=MockReasoner())
+        evaluate_job(STRONG_JD, _marwa(), store=store, reasoner=MockReasoner(), embedding_provider=_mock_embeddings())
         assert store.count("jobs") == 1
         assert store.count("decisions") == 1
 
@@ -104,6 +118,7 @@ class TestLLMFailureFallback:
         d = evaluate_job(
             STRONG_JD, _marwa(),
             store=store, reasoner=FailingReasoner(),
+            embedding_provider=_mock_embeddings(),
         )
         assert d.reasoning is None
 
@@ -112,6 +127,7 @@ class TestLLMFailureFallback:
         d = evaluate_job(
             STRONG_JD, _marwa(),
             store=store, reasoner=FailingReasoner(),
+            embedding_provider=_mock_embeddings(),
         )
         assert d.signals.llm_confidence == 0.0
 
@@ -121,6 +137,7 @@ class TestLLMFailureFallback:
         evaluate_job(
             STRONG_JD, _marwa(),
             store=store, reasoner=FailingReasoner(),
+            embedding_provider=_mock_embeddings(),
         )
         assert store.count("decisions") == 1
 
@@ -131,10 +148,12 @@ class TestLLMFailureFallback:
         d_with = evaluate_job(
             STRONG_JD, _marwa(),
             store=store, reasoner=MockReasoner(llm_confidence=1.0),
+            embedding_provider=_mock_embeddings(),
         )
         d_without = evaluate_job(
             STRONG_JD, _marwa(),
             store=store, reasoner=FailingReasoner(),
+            embedding_provider=_mock_embeddings(),
         )
         assert d_with.apply_score - d_without.apply_score <= 25.0 + 1e-9
 
@@ -160,6 +179,7 @@ On-site only in NYC. 5+ years Python, PyTorch.
         d = evaluate_job(
             on_site_jd, profile,
             store=store, reasoner=MockReasoner(llm_confidence=1.0),
+            embedding_provider=_mock_embeddings(),
         )
         assert d.verdict == Verdict.SKIP
         assert d.signals.dealbreaker_hit is True
@@ -176,6 +196,7 @@ On-site only in NYC. 5+ years Python, PyTorch.
             "",  # empty → parse_confidence=0
             _marwa(),
             store=store, reasoner=MockReasoner(llm_confidence=1.0),
+            embedding_provider=_mock_embeddings(),
         )
         assert d.verdict == Verdict.PARSE_FAILURE
         assert d.apply_score is None
@@ -214,7 +235,47 @@ class TestReproducibilityStamps:
         from src.config import ENGINE_VERSION, THRESHOLDS_VERSION, WEIGHTS
 
         store = InMemoryStore()
-        d = evaluate_job(STRONG_JD, _marwa(), store=store, reasoner=MockReasoner())
+        d = evaluate_job(STRONG_JD, _marwa(), store=store, reasoner=MockReasoner(), embedding_provider=_mock_embeddings())
         assert d.engine_version == ENGINE_VERSION
         assert d.thresholds_version == THRESHOLDS_VERSION
         assert d.weights == WEIGHTS
+
+
+# ── Silent-mock-fallback guardrail ───────────────────────────────────────────
+
+
+class TestEmbeddingProviderRequired:
+    """Regression: HIGH #3 from Phase 2 audit (2026-05-28).
+
+    Before this fix, both `compute_semantic_similarity` and
+    `evaluate_job` defaulted `embedding_provider=None` and silently
+    substituted `MockEmbeddingProvider()` — so a caller that forgot to
+    inject the real `SentenceTransformerProvider` would get hash-based
+    mock embeddings in production and score wrong without any warning.
+
+    These tests lock in the new contract: both functions require
+    explicit injection. Removing the keyword should fail loudly with
+    TypeError, never silently fall back to mock.
+    """
+
+    def test_evaluate_job_raises_when_embedding_provider_omitted(self):
+        store = InMemoryStore()
+        with pytest.raises(TypeError):
+            evaluate_job(  # type: ignore[call-arg]
+                STRONG_JD, _marwa(),
+                store=store, reasoner=MockReasoner(),
+            )
+
+    def test_orchestrator_source_has_no_silent_mock_fallback(self):
+        """Source-level guard: no `or MockEmbeddingProvider` expression
+        should re-introduce the silent fallback in a future refactor."""
+        from pathlib import Path
+
+        src = (
+            Path(__file__).parent.parent / "src" / "engine" / "orchestrator.py"
+        ).read_text(encoding="utf-8")
+        assert "or MockEmbeddingProvider" not in src, (
+            "src/engine/orchestrator.py re-introduced a silent "
+            "MockEmbeddingProvider fallback. The embedding provider MUST "
+            "be injected by the caller; there is no production-safe default."
+        )

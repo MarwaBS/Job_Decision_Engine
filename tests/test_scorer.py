@@ -199,7 +199,10 @@ class TestVerdictBoundaries:
              "llm_confidence": 0.9, "role_level_fit": 1.0},
             91.0, Verdict.PRIORITY,
         ),
-        # Exactly on PRIORITY boundary: 80.0. v=0.8 all → 100 * 0.8 = 80.0.
+        # Just above PRIORITY boundary: 82.0.
+        # v=0.8 on the four weighted-sum signals, role_level_fit=1.0 →
+        #   100 * (0.30·0.8 + 0.20·0.8 + 0.15·0.8 + 0.25·0.8 + 0.10·1.0)
+        # = 100 * (0.24 + 0.16 + 0.12 + 0.20 + 0.10) = 82.0.
         (
             {"skills_match": 0.8, "experience_match": 0.8, "semantic_similarity": 0.8,
              "llm_confidence": 0.8, "role_level_fit": 1.0},

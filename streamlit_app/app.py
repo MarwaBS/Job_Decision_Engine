@@ -157,7 +157,7 @@ def _build_reasoner(mode_name: str) -> LLMReasoner:
 
 @st.cache_resource
 def _build_embedding_provider() -> EmbeddingProvider:
-    """Always return the real SentenceTransformer.
+    """Always return the real SentenceTransformer — fail loudly if not.
 
     NEVER falls back to a hash-based mock provider. Mock embeddings
     differ from the real model's output, so using them in the UI would
@@ -166,11 +166,35 @@ def _build_embedding_provider() -> EmbeddingProvider:
     Docker image pre-downloads the model at build time, so in the HF
     Space runtime this is always available.
 
+    If the real provider cannot be constructed (sentence-transformers
+    missing, model cache corrupted, etc.) this calls `st.error` +
+    `st.stop()` BEFORE any `evaluate_job` runs. The app surfaces a
+    visible failure instead of silently scoring with mock embeddings.
+
+    A warmup `embed("warmup")` is issued at boot to force the lazy
+    sentence-transformers import + model deserialization to happen here,
+    rather than at the first user "Evaluate" click. This matches the
+    `_build_store` / `_build_reasoner` try/except shape, but with no
+    silent fallback — the embedding provider is load-bearing for
+    scoring, unlike the store (persistence) or reasoner (explanation).
+
     For hermetic tests, individual tests construct a mock provider
     directly and pass it into signal / orchestrator calls — this UI
     helper is not used in tests.
     """
-    return SentenceTransformerProvider()
+    try:
+        provider = SentenceTransformerProvider()
+        provider.embed("warmup")  # force lazy model load NOW
+        return provider
+    except (RuntimeError, ImportError, OSError) as e:
+        st.error(
+            "Embedding provider unavailable — cannot run semantic scoring. "
+            "Check that the Docker image built with sentence-transformers "
+            "installed and the all-MiniLM-L6-v2 model cached."
+        )
+        st.exception(e)
+        st.stop()
+        raise  # unreachable; st.stop() raises StopException — kept for type-checker
 
 
 # ── Profile resolution (Mongo first, demo fallback) ──────────────────────────
@@ -185,7 +209,7 @@ DEMO_PROFILE: CandidateProfile = CandidateProfile(
         "SHAP explainability, FastAPI serving, Docker, HuggingFace. "
         "Comfortable across tabular ML, LLM pipelines, and MLOps."
     ),
-    years_experience=5.5,
+    years_experience=6.0,
     seniority=Seniority.SENIOR,
     skills_tech=["python", "sql"],
     skills_tools=["pytorch", "xgboost", "lightgbm", "aws", "docker", "mlops", "fastapi"],
@@ -360,7 +384,7 @@ def render_footer() -> None:
     st.caption(
         "This UI is a thin rendering layer. The scorer, signals, decision "
         "trace, LLM boundary, and append-only persistence are covered by "
-        "261 hermetic unit tests. See the public README for the system "
+        "267 hermetic unit tests. See the public README for the system "
         "contract."
     )
 
