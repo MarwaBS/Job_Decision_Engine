@@ -26,6 +26,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Workflow-level permissions: minimal default. Individual jobs may upgrade
+# (none do today — privacy-audit + test only read; deploy-hf authenticates
+# to HuggingFace via HF_TOKEN secret, not GITHUB_TOKEN).
+# Addresses CodeQL actions/missing-workflow-permissions (medium).
+permissions:
+  contents: read
+
 env:
   HF_OWNER: MarwaBS
   HF_SPACE_NAME: job-decision-engine
