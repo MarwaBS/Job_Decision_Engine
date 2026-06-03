@@ -14,7 +14,7 @@ from src.db import InMemoryStore
 _VALID_YAML = """
 profile_version: "v1.0"
 active: true
-name: "Marwa"
+name: "Alex Rivera"
 summary: "ML engineer"
 years_experience: 5.0
 seniority: "senior"
@@ -28,7 +28,7 @@ dealbreakers: []
 
 _INVALID_YAML = """
 profile_version: "v1.0"
-name: "Marwa"
+name: "Alex Rivera"
 # missing summary, years_experience, seniority
 """
 
@@ -39,7 +39,7 @@ class TestLoadProfileFromYaml:
         path.write_text(_VALID_YAML, encoding="utf-8")
         profile = load_profile_from_yaml(path)
         assert profile.profile_version == "v1.0"
-        assert profile.name == "Marwa"
+        assert profile.name == "Alex Rivera"
 
     def test_missing_file_raises(self, tmp_path: Path):
         with pytest.raises(FileNotFoundError, match="not found"):

@@ -56,10 +56,10 @@ Salary: $150k-$220k
 """
 
 
-def _marwa() -> CandidateProfile:
+def _alex_rivera() -> CandidateProfile:
     return CandidateProfile(
         profile_version="v1.0",
-        name="Marwa",
+        name="Alex Rivera",
         summary="Senior ML engineer with 5+ years of Python, PyTorch, AWS",
         years_experience=5.5,
         seniority=Seniority.SENIOR,
@@ -76,7 +76,7 @@ class TestHappyPath:
     def test_strong_match_produces_apply_or_priority(self):
         store = InMemoryStore()
         d = evaluate_job(
-            STRONG_JD, _marwa(),
+            STRONG_JD, _alex_rivera(),
             store=store, reasoner=MockReasoner(llm_confidence=0.8),
             embedding_provider=_mock_embeddings(),
         )
@@ -85,7 +85,7 @@ class TestHappyPath:
     def test_reasoning_populated_on_success(self):
         store = InMemoryStore()
         d = evaluate_job(
-            STRONG_JD, _marwa(),
+            STRONG_JD, _alex_rivera(),
             store=store, reasoner=MockReasoner(llm_confidence=0.8),
             embedding_provider=_mock_embeddings(),
         )
@@ -96,7 +96,7 @@ class TestHappyPath:
     def test_llm_confidence_reflected_in_signals(self):
         store = InMemoryStore()
         d = evaluate_job(
-            STRONG_JD, _marwa(),
+            STRONG_JD, _alex_rivera(),
             store=store, reasoner=MockReasoner(llm_confidence=0.7),
             embedding_provider=_mock_embeddings(),
         )
@@ -104,7 +104,7 @@ class TestHappyPath:
 
     def test_persists_one_job_and_one_decision(self):
         store = InMemoryStore()
-        evaluate_job(STRONG_JD, _marwa(), store=store, reasoner=MockReasoner(), embedding_provider=_mock_embeddings())
+        evaluate_job(STRONG_JD, _alex_rivera(), store=store, reasoner=MockReasoner(), embedding_provider=_mock_embeddings())
         assert store.count("jobs") == 1
         assert store.count("decisions") == 1
 
@@ -116,7 +116,7 @@ class TestLLMFailureFallback:
     def test_reasoning_is_none_when_llm_fails(self):
         store = InMemoryStore()
         d = evaluate_job(
-            STRONG_JD, _marwa(),
+            STRONG_JD, _alex_rivera(),
             store=store, reasoner=FailingReasoner(),
             embedding_provider=_mock_embeddings(),
         )
@@ -125,7 +125,7 @@ class TestLLMFailureFallback:
     def test_llm_confidence_is_zero_when_llm_fails(self):
         store = InMemoryStore()
         d = evaluate_job(
-            STRONG_JD, _marwa(),
+            STRONG_JD, _alex_rivera(),
             store=store, reasoner=FailingReasoner(),
             embedding_provider=_mock_embeddings(),
         )
@@ -135,7 +135,7 @@ class TestLLMFailureFallback:
         """Architecture §7: the decision ships even without the LLM."""
         store = InMemoryStore()
         evaluate_job(
-            STRONG_JD, _marwa(),
+            STRONG_JD, _alex_rivera(),
             store=store, reasoner=FailingReasoner(),
             embedding_provider=_mock_embeddings(),
         )
@@ -146,12 +146,12 @@ class TestLLMFailureFallback:
         should drop the score by at most 100 * 0.25 = 25 points."""
         store = InMemoryStore()
         d_with = evaluate_job(
-            STRONG_JD, _marwa(),
+            STRONG_JD, _alex_rivera(),
             store=store, reasoner=MockReasoner(llm_confidence=1.0),
             embedding_provider=_mock_embeddings(),
         )
         d_without = evaluate_job(
-            STRONG_JD, _marwa(),
+            STRONG_JD, _alex_rivera(),
             store=store, reasoner=FailingReasoner(),
             embedding_provider=_mock_embeddings(),
         )
@@ -168,7 +168,7 @@ class TestLLMCannotOverrideVerdict:
         Architecture §6: hard filters fire BEFORE the weighted sum. The
         LLM's `llm_confidence` is never evaluated in the hard-filter path.
         """
-        profile = _marwa().model_copy(
+        profile = _alex_rivera().model_copy(
             update={"dealbreakers": ["on_site_only"]}
         )
         on_site_jd = """Title: Senior ML Engineer
@@ -194,7 +194,7 @@ On-site only in NYC. 5+ years Python, PyTorch.
         store = InMemoryStore()
         d = evaluate_job(
             "",  # empty → parse_confidence=0
-            _marwa(),
+            _alex_rivera(),
             store=store, reasoner=MockReasoner(llm_confidence=1.0),
             embedding_provider=_mock_embeddings(),
         )
@@ -217,12 +217,12 @@ class TestRoleLevelFit:
     ])
     def test_discrete_level_fit(self, job_sen, cand_sen, expected):
         job = ParsedJob(title="X", seniority=job_sen)
-        profile = _marwa().model_copy(update={"seniority": cand_sen})
+        profile = _alex_rivera().model_copy(update={"seniority": cand_sen})
         assert compute_role_level_fit(job, profile) == expected
 
     def test_no_job_seniority_returns_one(self):
         job = ParsedJob(title="X", seniority=None)
-        assert compute_role_level_fit(job, _marwa()) == 1.0
+        assert compute_role_level_fit(job, _alex_rivera()) == 1.0
 
 
 # ── Reproducibility stamps ───────────────────────────────────────────────────
@@ -235,7 +235,7 @@ class TestReproducibilityStamps:
         from src.config import ENGINE_VERSION, THRESHOLDS_VERSION, WEIGHTS
 
         store = InMemoryStore()
-        d = evaluate_job(STRONG_JD, _marwa(), store=store, reasoner=MockReasoner(), embedding_provider=_mock_embeddings())
+        d = evaluate_job(STRONG_JD, _alex_rivera(), store=store, reasoner=MockReasoner(), embedding_provider=_mock_embeddings())
         assert d.engine_version == ENGINE_VERSION
         assert d.thresholds_version == THRESHOLDS_VERSION
         assert d.weights == WEIGHTS
@@ -262,7 +262,7 @@ class TestEmbeddingProviderRequired:
         store = InMemoryStore()
         with pytest.raises(TypeError):
             evaluate_job(  # type: ignore[call-arg]
-                STRONG_JD, _marwa(),
+                STRONG_JD, _alex_rivera(),
                 store=store, reasoner=MockReasoner(),
             )
 

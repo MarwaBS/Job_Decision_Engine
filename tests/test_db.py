@@ -43,7 +43,7 @@ from src.schemas import (
 def _profile(version: str = "v1.0", active: bool = True) -> CandidateProfile:
     return CandidateProfile(
         profile_version=version,
-        name="Marwa",
+        name="Alex Rivera",
         summary="ML eng",
         years_experience=5.0,
         seniority=Seniority.SENIOR,
