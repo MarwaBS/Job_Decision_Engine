@@ -48,7 +48,7 @@ def _job() -> ParsedJob:
 def _profile() -> CandidateProfile:
     return CandidateProfile(
         profile_version="v1.0",
-        name="Marwa",
+        name="Alex Rivera",
         summary="ML engineer with 5 years of Python + PyTorch",
         years_experience=5.0,
         seniority=Seniority.SENIOR,
@@ -201,7 +201,7 @@ class TestPromptVersioning:
             prompt, job=_job(), profile=_profile(), signals=_signals()
         )
         assert "Senior ML Engineer" in rendered
-        assert "Marwa" in rendered
+        assert "Alex Rivera" in rendered
         assert "python" in rendered.lower()
 
 

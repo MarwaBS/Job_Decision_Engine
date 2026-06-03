@@ -202,7 +202,7 @@ def _build_embedding_provider() -> EmbeddingProvider:
 
 DEMO_PROFILE: CandidateProfile = CandidateProfile(
     profile_version="demo-1.0",
-    name="Demo Candidate (Marwa Ben Salem)",
+    name="Demo Candidate (Alex Rivera)",
     summary=(
         "Senior ML engineer with 5+ years of end-to-end experience building "
         "production ML systems in Python — data engineering, model training, "

@@ -70,15 +70,15 @@ On-site only.
 """
 
 
-def _marwa_profile() -> CandidateProfile:
-    """A stable candidate profile used across the integration tests.
+def _alex_rivera_profile() -> CandidateProfile:
+    """A stable synthetic candidate profile used across the integration tests.
 
-    Representative of the real user of the engine — ML engineer with Python
-    / PyTorch / AWS + MLOps background, 5.5 years of experience, senior.
+    A representative senior ML-engineer persona — Python / PyTorch / AWS +
+    MLOps background, 5.5 years of experience. Synthetic; not a real person.
     """
     return CandidateProfile(
         profile_version="v1.0",
-        name="Marwa",
+        name="Alex Rivera",
         summary=(
             "Senior ML engineer with 5+ years of experience building "
             "end-to-end ML systems in Python. Comfortable with PyTorch, "
@@ -129,7 +129,7 @@ class TestStrongMatchEndToEnd:
     def test_pipeline_produces_apply_or_priority_verdict(self):
         """A strong-match JD + matching profile must not SKIP."""
         signals = _build_signals(
-            STRONG_JD, _marwa_profile(),
+            STRONG_JD, _alex_rivera_profile(),
             llm_confidence=0.85,  # simulated Step-4 LLM output
             role_level_fit=1.0,   # senior role, senior candidate
         )
@@ -141,7 +141,7 @@ class TestStrongMatchEndToEnd:
 
     def test_skills_signal_is_high_for_strong_match(self):
         signals = _build_signals(
-            STRONG_JD, _marwa_profile(),
+            STRONG_JD, _alex_rivera_profile(),
             llm_confidence=0.5, role_level_fit=1.0,
         )
         # Profile has python, pytorch, aws, mlops, docker — JD required has
@@ -154,7 +154,7 @@ class TestStrongMatchEndToEnd:
         """Strong structured JD must not trigger the low-parse-confidence
         REVIEW filter."""
         signals = _build_signals(
-            STRONG_JD, _marwa_profile(),
+            STRONG_JD, _alex_rivera_profile(),
             llm_confidence=0.5, role_level_fit=1.0,
         )
         assert signals.parse_confidence >= 0.5
@@ -168,7 +168,7 @@ class TestWeakMatchEndToEnd:
         """A 10-year Rust JD vs a 5-year Python profile should not produce
         a strong APPLY verdict."""
         signals = _build_signals(
-            WEAK_JD_MISMATCH, _marwa_profile(),
+            WEAK_JD_MISMATCH, _alex_rivera_profile(),
             llm_confidence=0.2,
             role_level_fit=0.5,
         )
@@ -181,7 +181,7 @@ class TestWeakMatchEndToEnd:
     def test_experience_signal_low_when_underqualified(self):
         """5.5 years of experience vs 10 required → signal < 1.0."""
         signals = _build_signals(
-            WEAK_JD_MISMATCH, _marwa_profile(),
+            WEAK_JD_MISMATCH, _alex_rivera_profile(),
             llm_confidence=0.5, role_level_fit=1.0,
         )
         assert signals.experience_match < 1.0
@@ -194,7 +194,7 @@ class TestWeakMatchEndToEnd:
 class TestPipelineReproducibility:
     def test_same_input_produces_same_result(self):
         """Architecture Phase 10: consistent decisions on consistent inputs."""
-        profile = _marwa_profile()
+        profile = _alex_rivera_profile()
         r1 = score(_build_signals(STRONG_JD, profile, llm_confidence=0.7, role_level_fit=1.0))
         r2 = score(_build_signals(STRONG_JD, profile, llm_confidence=0.7, role_level_fit=1.0))
         assert r1.apply_score == r2.apply_score
@@ -213,7 +213,7 @@ class TestPipelineReproducibility:
         from src.config import ENGINE_VERSION, THRESHOLDS_VERSION, WEIGHTS
 
         signals = _build_signals(
-            STRONG_JD, _marwa_profile(),
+            STRONG_JD, _alex_rivera_profile(),
             llm_confidence=0.7, role_level_fit=1.0,
         )
         result = score(signals)
