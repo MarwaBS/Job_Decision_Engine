@@ -11,7 +11,7 @@
 This is a personal portfolio project; there is no formal security team.
 
 If you discover a security issue, please report it privately by emailing
-**marwabensalem30@gmail.com** with the subject `[SECURITY] Job_Decision_Engine`.
+**MarwaBS@users.noreply.github.com** with the subject `[SECURITY] Job_Decision_Engine`.
 I will acknowledge within 7 days and aim to ship a fix or mitigation
 within 30 days.
 
