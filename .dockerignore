@@ -10,7 +10,6 @@ MEMORY/
 docs/
 EXECUTION_RULES.md
 AUDIT_STATE.md
-CLAUDE.md
 
 # Local dev
 .venv/

@@ -35,7 +35,6 @@ MEMORY/
 docs/
 EXECUTION_RULES.md
 AUDIT_STATE.md
-CLAUDE.md
 
 # Pre-existing clone of the public repo lives nested inside the working
 # tree — keep it out of this local git history.
