@@ -73,15 +73,34 @@ class MockEmbeddingProvider:
 # ── Production provider (lazy import) ────────────────────────────────────────
 
 
+# Pinned model revision. The semantic signal feeds apply_score, which this
+# project advertises as deterministic (see the docstring of
+# compute_semantic_similarity). Loading the model by name alone pulls whatever
+# revision HuggingFace currently serves on `main` — and that ref moves
+# (all-MiniLM-L6-v2 was last updated 2026-06-01), so an upstream model update
+# would silently shift every semantic_similarity, and therefore every verdict,
+# for the same input. Pinning a commit SHA makes the embedding weights
+# reproducible. To intentionally upgrade the model, bump this SHA and
+# re-baseline any stored scores.
+_MODEL_REVISION = "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
+
+
 class SentenceTransformerProvider:
     """Production path — `sentence-transformers/all-MiniLM-L6-v2`.
 
     Constructed lazily. The model download (~400 MB) only happens when
-    `embed` is first called — which keeps module import cheap.
+    `embed` is first called — which keeps module import cheap. The model
+    revision is pinned (see ``_MODEL_REVISION``) so embeddings are
+    reproducible across upstream model updates.
     """
 
-    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
+    def __init__(
+        self,
+        model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
+        revision: str = _MODEL_REVISION,
+    ):
         self._model_name = model_name
+        self._revision = revision
         self._model = None
 
     def embed(self, text: str) -> tuple[float, ...]:
@@ -94,7 +113,7 @@ class SentenceTransformerProvider:
                     "Install it from requirements.txt, or use MockEmbeddingProvider "
                     "for offline/test contexts."
                 ) from e
-            self._model = SentenceTransformer(self._model_name)
+            self._model = SentenceTransformer(self._model_name, revision=self._revision)
         vec = self._model.encode(text, convert_to_numpy=True, normalize_embeddings=True)
         return tuple(float(x) for x in vec)
 
