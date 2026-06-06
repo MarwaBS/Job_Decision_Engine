@@ -43,31 +43,30 @@ from typing import Literal
 
 import streamlit as st
 
-# IMPORTANT: set_page_config MUST be the first Streamlit command invoked
-# by this module. It lives at module top — before any decorators, before
-# any cached-resource registration — because Streamlit re-executes the
-# script on every interaction and the rule is "first st.* call wins".
+from src.config import ENGINE_VERSION, THRESHOLDS
+from src.db import InMemoryStore, MongoStore, Store
+from src.engine.orchestrator import evaluate_job
+from src.llm.reasoning import (
+    FailingReasoner,
+    LLMReasoner,
+    OpenAIReasoner,
+)
+from src.schemas import CandidateProfile, DecisionResult, Seniority
+from src.signals.semantic import (
+    EmbeddingProvider,
+    SentenceTransformerProvider,
+)
+
+# IMPORTANT: set_page_config MUST be the first Streamlit command invoked by
+# this module — Streamlit re-executes the script on every interaction and the
+# rule is "first st.* call wins". The src imports above are plain Python with
+# no st.* calls, so set_page_config remains the first Streamlit command.
 # Moving this inside a function that runs after cache_resource decorators
 # caused StreamlitSetPageConfigMustBeFirstCommandError on HF Space.
 st.set_page_config(
     page_title="Job Decision Engine",
     page_icon="⚖️",
     layout="wide",
-)
-
-from src.config import ENGINE_VERSION, THRESHOLDS, WEIGHTS
-from src.db import InMemoryStore, MongoStore, Store
-from src.engine.orchestrator import evaluate_job
-from src.llm.reasoning import (
-    FailingReasoner,
-    LLMReasoner,
-    MockReasoner,
-    OpenAIReasoner,
-)
-from src.schemas import CandidateProfile, DecisionResult, Seniority, Verdict
-from src.signals.semantic import (
-    EmbeddingProvider,
-    SentenceTransformerProvider,
 )
 
 
