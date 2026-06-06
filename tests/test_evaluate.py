@@ -15,9 +15,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-import pytest
 
-from scripts.evaluate import MIN_OUTCOMES_FOR_EVALUATION, EvaluationResult, evaluate
+from scripts.evaluate import MIN_OUTCOMES_FOR_EVALUATION, evaluate
 from src.db import InMemoryStore
 from src.schemas import (
     DecisionResult,
@@ -26,7 +25,6 @@ from src.schemas import (
     Outcome,
     OutcomeStage,
     Signals,
-    Thresholds,
     Verdict,
     Weights,
 )

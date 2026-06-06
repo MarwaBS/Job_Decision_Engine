@@ -19,7 +19,6 @@ context. A separate manual smoke (`streamlit run`) covers that path.
 from __future__ import annotations
 
 import importlib
-import os
 from pathlib import Path
 
 import pytest
