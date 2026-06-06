@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import hashlib
 import math
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from src.schemas import CandidateProfile, ParsedJob
 
@@ -101,7 +101,10 @@ class SentenceTransformerProvider:
     ):
         self._model_name = model_name
         self._revision = revision
-        self._model = None
+        # Typed Any (not inferred None): the lazy-loaded SentenceTransformer is
+        # assigned on first embed(); annotating keeps the .encode call below
+        # type-correct without importing the heavy class at module scope.
+        self._model: Any = None
 
     def embed(self, text: str) -> tuple[float, ...]:
         if self._model is None:
