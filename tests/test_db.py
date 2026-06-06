@@ -31,7 +31,6 @@ from src.schemas import (
     ParsedJob,
     Seniority,
     Signals,
-    Thresholds,
     Verdict,
     Weights,
 )

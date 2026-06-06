@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 
 import pytest
 
@@ -20,9 +19,7 @@ from src.schemas import (
     DecisionTrace,
     Job,
     ParsedJob,
-    Seniority,
     Signals,
-    Thresholds,
     Verdict,
     Weights,
 )

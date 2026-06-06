@@ -220,6 +220,17 @@ class DecisionResult(BaseModel):
 # ── Persistence envelopes (architecture §5) ──────────────────────────────────
 
 
+#: Recognized dealbreaker keys. The orchestrator's hard filter silently ignores
+#: keys it doesn't recognize, so an unvalidated typo (e.g. "requires_10yr_exp")
+#: would disable a dealbreaker with no signal. CandidateProfile rejects unknown
+#: keys at construction instead. Semantics live in
+#: ``src.engine.orchestrator._check_dealbreakers``; ``no_pytorch`` is reserved
+#: v2 vocabulary and is currently a documented no-op.
+KNOWN_DEALBREAKERS: frozenset[str] = frozenset(
+    {"requires_10_yr_exp", "on_site_only", "no_pytorch"}
+)
+
+
 class CandidateProfile(BaseModel):
     """Candidate profile. Architecture §5.1.
 
@@ -244,6 +255,19 @@ class CandidateProfile(BaseModel):
     must_haves: list[str] = Field(default_factory=list)
     nice_to_haves: list[str] = Field(default_factory=list)
     dealbreakers: list[str] = Field(default_factory=list)
+
+    @field_validator("dealbreakers")
+    @classmethod
+    def _validate_dealbreakers(cls, value: list[str]) -> list[str]:
+        """Reject unrecognized dealbreaker keys so a typo fails fast here
+        rather than silently disabling a hard filter at scoring time."""
+        unknown = sorted({d for d in value if d.strip().lower() not in KNOWN_DEALBREAKERS})
+        if unknown:
+            raise ValueError(
+                f"unknown dealbreaker key(s): {unknown}; "
+                f"valid keys are {sorted(KNOWN_DEALBREAKERS)}"
+            )
+        return value
 
 
 class ParsedJob(BaseModel):

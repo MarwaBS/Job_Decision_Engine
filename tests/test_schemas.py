@@ -11,14 +11,44 @@ import pytest
 from pydantic import ValidationError
 
 from src.schemas import (
+    CandidateProfile,
     DecisionSensitivity,
     DecisionTrace,
     FailureMode,
+    Seniority,
     Signals,
     Thresholds,
     Verdict,
     Weights,
 )
+
+
+def _profile(**overrides: object) -> CandidateProfile:
+    base = dict(
+        profile_version="v1",
+        name="Alex Rivera",
+        summary="ML eng",
+        years_experience=5.0,
+        seniority=Seniority.SENIOR,
+    )
+    base.update(overrides)
+    return CandidateProfile(**base)  # type: ignore[arg-type]
+
+
+class TestCandidateProfileDealbreakers:
+    """The dealbreaker vocabulary is validated at construction (no silent typos)."""
+
+    def test_known_dealbreakers_accepted(self):
+        p = _profile(dealbreakers=["on_site_only", "requires_10_yr_exp"])
+        assert p.dealbreakers == ["on_site_only", "requires_10_yr_exp"]
+
+    def test_empty_dealbreakers_ok(self):
+        assert _profile().dealbreakers == []
+
+    def test_unknown_dealbreaker_rejected(self):
+        # A typo (missing underscore) must fail fast, not silently no-op.
+        with pytest.raises(ValidationError, match="unknown dealbreaker key"):
+            _profile(dealbreakers=["requires_10yr_exp"])
 
 # ── Signals ──────────────────────────────────────────────────────────────────
 
