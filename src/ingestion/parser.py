@@ -330,7 +330,12 @@ def _extract_salary(text: str, warnings: list[str]) -> tuple[int, int] | None:
             warnings.append("salary_not_parsed")
         return None
     if re.match(
-        r"\s*(?:/|per\s+)(?:hour|hr|day|week|month)\b", text[m.end() :], re.IGNORECASE
+        # `\s*+` possessive: the run before "/"/"per" can never be re-split,
+        # keeping this linear on pathological whitespace (same CodeQL
+        # quantifier discipline as the module's other patterns).
+        r"\s*+(?:/|per\s++)(?:hour|hr|day|week|month)\b",
+        text[m.end() :],
+        re.IGNORECASE,
     ):
         # A rate period right after the range means this is not an annual
         # figure — refuse rather than mis-normalise.
