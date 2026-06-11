@@ -142,10 +142,20 @@ _AMBIGUOUS_TOKENS = frozenset({"go", "r", "cv", "de", "tf", "ts", "js", "py"})
 # side — plain spaces and line edges are how prose presents these words, so
 # they don't count on their own. "Python, Go, R" / "TS/JS" / "(R)" /
 # "- Go" all qualify; "go-to-market", "R&D", "TF-IDF", "send your CV"
-# don't. Residual accepted: a comma directly after the word in flowing
-# prose ("ready to go, and...") still matches — rare in JD text and far
-# cheaper than the phantom-everything failure mode. All quantifiers are
-# bounded (`\s?`) — no star adjacency, so no polynomial backtracking.
+# don't.
+#
+# KNOWN RESIDUALS (documented + pinned in
+# test_skills.py::TestAmbiguousAliasResiduals): delimiter adjacency cannot
+# see what's on the FAR side of the delimiter, so prose that happens to
+# put list punctuation against one of these tokens still matches —
+# "ready to go, and..." (trailing comma), "TS/SCI clearance" (slash),
+# "CV/cover letter" (slash), "Microsoft(R)" (parens). Disambiguating those
+# would require modelling the neighbour token (is the other side of the
+# slash itself a skill?), which buys little over the current precision:
+# every one of these ALSO matched under plain word-boundary matching, so
+# list-context gating strictly tightens precision and the residual set is
+# small, named, and regression-pinned. All quantifiers are bounded
+# (`\s?`) — no star adjacency, so no polynomial backtracking.
 _STRONG_LEAD = r"(?:[,;:/()|]\s?|(?:^|\n)\s?[-•*]\s)"
 _STRONG_TRAIL = r"(?=\s?[,;:/()|])"
 

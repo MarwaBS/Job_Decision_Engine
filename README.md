@@ -46,10 +46,13 @@ answers on different runs. The decision should be reproducible; the
 ## 2. How I use it
 
 Two examples, and **both are committed, reproducible fixtures**: the
-exact JD texts live in `scripts/demo_example.py`, one command replays
-them through the real engine, and the deterministic numbers below are
-pinned by `tests/test_demo_example.py` so this section cannot silently
-drift from the code:
+exact JD texts live in `scripts/demo_example.py` and one command replays
+them through the real engine. The hermetically-computable numbers below
+(parse confidence, extracted skills, skills/experience/role signals,
+verdicts) are pinned by `tests/test_demo_example.py`; the two
+model-dependent numbers (`semantic_sim` and the final `apply_score`)
+are deliberately not in the hermetic suite — they are reproduced by the
+script itself, which loads the pinned model revision:
 
 ```
 python -m scripts.demo_example
@@ -106,9 +109,12 @@ dominant_signal:   skills_match
 near_threshold:    False
 ```
 
-The deterministic signal values are also pinned by
-`tests/test_demo_example.py`, so if this README block ever drifts from
-what the engine computes, CI fails.
+The hermetically-computable values above (parse confidence, extraction,
+skills/experience/role signals) are pinned by
+`tests/test_demo_example.py`, so if this README block drifts from what
+the engine computes, CI fails; `semantic_sim` and `apply_score` are
+verified by running the script (model-dependent, hence kept out of the
+hermetic suite by design).
 
 With OpenAI enabled, the LLM adds its bounded signal (≤ 25 points at
 `llm_confidence = 1.0`); a calibrated confidence around 0.75 lifts this
@@ -303,5 +309,7 @@ spec says. Three layers of evidence in the repo:
   deploy. Branch protection on `main` enforces the whole pipeline.
 
 The README itself is contract-tested — formula values quoted here must
-match `src/config.py` exactly, and both examples' deterministic signal
-values are pinned by `tests/test_demo_example.py` — drift fails CI.
+match `src/config.py` exactly, and both examples' hermetically-computable
+signal values are pinned by `tests/test_demo_example.py` — drift fails
+CI (the model-dependent `semantic_sim`/`apply_score` are reproduced by
+`python -m scripts.demo_example` rather than test-pinned).

@@ -126,6 +126,29 @@ class TestExtraction:
     ):
         assert expected_subset <= set(extract_skills(text).all)
 
+    @pytest.mark.parametrize(
+        ("text", "residual_phantom"),
+        [
+            # KNOWN, DOCUMENTED residuals of list-context gating (see the
+            # _STRONG_LEAD/_STRONG_TRAIL comment in skills.py): delimiter
+            # adjacency can't see the far side of the delimiter. These pins
+            # make the accepted limitation visible and verifiable — if a
+            # future change FIXES one, this test fails and the residual
+            # documentation must be updated to match.
+            ("ready to go, and we ship", "go"),
+            ("Active TS/SCI clearance required", "typescript"),
+            ("Send your CV/cover letter to us", "computer vision"),
+            ("Microsoft(R) Office proficiency", "r"),
+        ],
+    )
+    def test_documented_residual_phantoms_are_pinned(
+        self, text: str, residual_phantom: str
+    ):
+        """These phantoms are an accepted, documented tradeoff — NOT a bug
+        regression. Every one of them also matched under plain word-boundary
+        matching, so list-context gating strictly tightened precision."""
+        assert residual_phantom in extract_skills(text).all
+
     def test_boundary_anchoring_still_matches_real_mentions(self):
         """The anchors must not cost recall on legitimate mentions —
         including the awkward symbol-suffixed aliases (c++, c#) where a
