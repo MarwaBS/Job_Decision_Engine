@@ -270,6 +270,29 @@ class TestSalary:
         assert "salary_not_parsed" in j.parse_warnings
 
 
+# ── Pathological input (ReDoS regression guard) ──────────────────────────────
+
+
+class TestPathologicalWhitespace:
+    def test_long_space_runs_parse_in_linear_time(self):
+        """Regression guard for CodeQL py/polynomial-redos.
+
+        Patterns shaped like `\\s*X?\\s*` backtrack polynomially on long
+        whitespace runs — "$100" + 50k spaces took ~75 SECONDS before the
+        quantifier-discipline fix and ~30ms after. The parser ingests
+        user-pasted text, so this is a real DoS surface, not a curiosity.
+        The 5s ceiling is ~100x the fixed cost and ~1/15th the broken
+        cost — loose enough for slow CI runners, tight enough that any
+        quadratic regression fails loudly.
+        """
+        import time
+
+        evil = "Title: Engineer\n$100" + " " * 50_000 + "x\n5" + " " * 50_000 + "y"
+        start = time.perf_counter()
+        parse_job(evil)
+        assert time.perf_counter() - start < 5.0
+
+
 # ── Parser purity ────────────────────────────────────────────────────────────
 
 

@@ -38,20 +38,28 @@ from src.signals.skills import _ALIAS_PATTERNS, SKILLS_TAXONOMY
 
 # ── Regex patterns ───────────────────────────────────────────────────────────
 
+# `\s*+` (possessive, py3.11+) where a `\s*` sits against an OPTIONAL colon:
+# the possessive forbids re-splitting the whitespace run during backtracking,
+# which is what turns "header + long spaces + junk" lines quadratic.
 _TITLE_LINE_PATTERN = re.compile(
-    r"^(?:title|position|role|job\s*title)\s*:?\s*(.+?)\s*$",
+    r"^(?:title|position|role|job\s*title)\s*+:?\s*(.+?)\s*$",
     re.IGNORECASE,
 )
 _COMPANY_LINE_PATTERN = re.compile(
-    r"^(?:company|employer|organization)\s*:?\s*(.+?)\s*$",
+    r"^(?:company|employer|organization)\s*+:?\s*(.+?)\s*$",
     re.IGNORECASE,
 )
 _LOCATION_LINE_PATTERN = re.compile(
-    r"^(?:location|based\s+in)\s*:?\s*(.+?)\s*$",
+    r"^(?:location|based\s+in)\s*+:?\s*(.+?)\s*$",
     re.IGNORECASE,
 )
+# Quantifier discipline (applies to every pattern in this module): never
+# leave two `\s*` adjacent through an optional element ("\s*\+?\s*") — that
+# shape backtracks polynomially on long whitespace runs in user-pasted text
+# (CodeQL py/polynomial-redos). Optional groups must contain a required
+# character that anchors any inner whitespace.
 _YEARS_PATTERN = re.compile(
-    r"(\d+)\s*\+?\s*(?:to\s*\d+\s*)?(?:years?|yrs?)\s+of\s+experience"
+    r"(\d+)(?:\s*\+)?\s+(?:to\s+\d+\s+)?(?:years?|yrs?)\s+of\s+experience"
     r"|(\d+)\s*\+\s*(?:years?|yrs?)"
     r"|(\d+)\s*(?:-|to|–)\s*\d+\s*(?:years?|yrs?)",
     re.IGNORECASE,
@@ -62,11 +70,20 @@ _ONSITE_PATTERN = re.compile(r"\b(?:on[-\s]?site|in[-\s]?office)\b", re.IGNORECA
 _SALARY_PATTERN = re.compile(
     # Two shapes: "$100k-$150k" / "$100 - $150" (k-implied) and the most
     # common US-JD format "$100,000 - $150,000" (comma thousands).
-    r"\$\s*(\d{2,3}(?:,\d{3})*)\s*[kK]?\s*(?:-|to|–)\s*\$?\s*(\d{2,3}(?:,\d{3})*)\s*[kK]?",
+    #
+    # Quantifier discipline (ReDoS): no two `\s*` may sit adjacent through an
+    # optional element (`\s*[kK]?\s*` backtracks polynomially on long space
+    # runs — flagged by CodeQL py/polynomial-redos). Each optional group here
+    # contains a required character, so every `\s` repetition is anchored.
+    r"\$\s*(\d{2,3}(?:,\d{3})*)"  # low bound, optionally comma-grouped
+    r"(?:\s?[kK])?"  # optional thousands suffix ("150k" / "150 k")
+    r"\s*(?:-|to|–)\s*"  # range separator
+    r"(?:\$\s*)?(\d{2,3}(?:,\d{3})*)"  # high bound
+    r"(?:\s?[kK])?",
 )
 _NICE_TO_HAVE_HEADING = re.compile(
     r"(?i)(?:preferred|nice[-\s]?to[-\s]?have|bonus|plus|would\s+be\s+nice)"
-    r"\s*(?:qualifications|skills|experience)?\s*:?"
+    r"\s*+(?:qualifications|skills|experience)?\s*+:?"
 )
 
 _SENIORITY_KEYWORDS: list[tuple[re.Pattern[str], Seniority]] = [
