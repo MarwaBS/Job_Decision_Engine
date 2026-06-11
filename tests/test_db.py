@@ -14,7 +14,7 @@ behaviour verified here:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -34,7 +34,6 @@ from src.schemas import (
     Verdict,
     Weights,
 )
-
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -63,14 +62,19 @@ def _job(content_hash: str = "sha256:abc") -> Job:
 
 def _decision() -> DecisionResult:
     signals = Signals(
-        skills_match=0.8, experience_match=1.0,
-        semantic_similarity=0.7, llm_confidence=0.85, role_level_fit=1.0,
+        skills_match=0.8,
+        experience_match=1.0,
+        semantic_similarity=0.7,
+        llm_confidence=0.85,
+        role_level_fit=1.0,
     )
     return DecisionResult(
         apply_score=85.0,
         verdict=Verdict.PRIORITY,
         signals=signals,
-        weights=Weights(skills=0.30, experience=0.20, semantic=0.15, llm=0.25, role=0.10),
+        weights=Weights(
+            skills=0.30, experience=0.20, semantic=0.15, llm=0.25, role=0.10
+        ),
         thresholds_version="v1.0",
         decision_trace=DecisionTrace(
             dominant_signal="skills_match",
@@ -88,7 +92,7 @@ def _decision() -> DecisionResult:
 
 
 def _outcome(decision_id: str) -> Outcome:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return Outcome(
         decision_id=decision_id,
         submitted_at=now,
@@ -178,8 +182,11 @@ class TestDecisionsAppendOnly:
         # Build the full list of store attributes and assert none of them
         # mutate decisions.
         forbidden_names = {
-            "update_decision", "replace_decision", "delete_decision",
-            "fix_decision", "patch_decision",
+            "update_decision",
+            "replace_decision",
+            "delete_decision",
+            "fix_decision",
+            "patch_decision",
         }
         assert set(dir(store)) & forbidden_names == set()
 
@@ -206,7 +213,7 @@ class TestOutcomes:
         store = InMemoryStore()
         did = store.insert_decision(_decision())
         store.insert_outcome(_outcome(did))
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         store.push_outcome_stage(did, OutcomeStage(stage="CALLBACK", at=now))
         outcomes = store.list_outcomes()
         assert len(outcomes[0]["stages"]) == 2
@@ -230,9 +237,10 @@ class TestOutcomes:
     def test_push_stage_on_missing_outcome_raises(self):
         store = InMemoryStore()
         with pytest.raises(KeyError):
-            store.push_outcome_stage("nonexistent", OutcomeStage(
-                stage="CALLBACK", at=datetime.now(timezone.utc)
-            ))
+            store.push_outcome_stage(
+                "nonexistent",
+                OutcomeStage(stage="CALLBACK", at=datetime.now(UTC)),
+            )
 
 
 # ── Feedback (append-only) ───────────────────────────────────────────────────
@@ -242,18 +250,22 @@ class TestFeedback:
     def test_feedback_append_only(self):
         store = InMemoryStore()
         did = store.insert_decision(_decision())
-        store.insert_feedback(FeedbackLog(
-            decision_id=did,
-            feedback_type="verdict_wrong",
-            reason="parser missed skill",
-            expected_verdict=Verdict.APPLY,
-            actual_verdict=Verdict.REVIEW,
-        ))
-        store.insert_feedback(FeedbackLog(
-            decision_id=did,
-            feedback_type="reasoning_off",
-            reason="LLM missed domain context",
-        ))
+        store.insert_feedback(
+            FeedbackLog(
+                decision_id=did,
+                feedback_type="verdict_wrong",
+                reason="parser missed skill",
+                expected_verdict=Verdict.APPLY,
+                actual_verdict=Verdict.REVIEW,
+            )
+        )
+        store.insert_feedback(
+            FeedbackLog(
+                decision_id=did,
+                feedback_type="reasoning_off",
+                reason="LLM missed domain context",
+            )
+        )
         assert store.count("feedback_logs") == 2
 
 

@@ -64,9 +64,10 @@ well-written prose paragraph but has no labeled headers (no `Title:`,
 
 ```
 parse_confidence:  0.45    ← BELOW the MIN_PARSE_CONFIDENCE = 0.5 hard filter
-verdict:           REVIEW
+verdict:           PARSE_FAILURE
 failure_mode:      low_parse_confidence
-score:             0.0     (hard filter short-circuits the weighted sum)
+score:             None    (undefined — the JD couldn't be parsed, so no
+                            weighted sum is computed; "N/A" in the UI)
 ```
 
 **What the system was telling me:** "I extracted some skills and a
@@ -80,34 +81,45 @@ my 4.3 years. I skipped it.
 soft-weighted the low parse confidence and shipped a confident-looking
 score from garbage parser output. The hard filter is the integrity gate.
 
-### Example B — Acme AI Senior ML Engineer (structured JD)
+### Example B — Acme AI Senior ML Engineer (structured JD, fully reproducible)
 
 Same engine, this time on a JD with explicit `Title:` / `Company:` /
-`Location:` headers + a "Required" section + a "Nice to have" section.
+`Location:` headers + a "Requirements" section + a "Nice to have"
+section. **Every number below is reproducible from a clone of this
+repo** — the exact JD and profile are committed in
+`scripts/demo_example.py`, and the run is deterministic (pinned model
+revision, LLM-absent path, no API key needed):
 
 ```
-parse_confidence:  1.00    (8 of 8 structural cues found)
-skills_match:      0.812
-experience_match:  1.000   (5+ years required, my profile has 5.5)
-semantic_sim:      0.889
-llm_confidence:    0.750   (gpt-4o calibrated)
-role_level_fit:    1.000
+$ python -m scripts.demo_example
 
-apply_score:       86.5    ← well above PRIORITY threshold (80)
-verdict:           PRIORITY
+parse_confidence:  1.00    (8 of 8 structural cues found)
+skills_match:      0.895   (8/8 required matched + 1/3 nice-to-have)
+experience_match:  1.000   (5+ years required, demo profile has 6)
+semantic_sim:      0.879   (all-MiniLM-L6-v2 @ pinned revision)
+llm_confidence:    0.000   (LLM-absent path — no API key)
+role_level_fit:    1.000   (senior JD, senior profile)
+
+apply_score:       70.0    ← APPLY band (65 ≤ s < 80)
+verdict:           APPLY
 dominant_signal:   skills_match
 near_threshold:    False
 ```
 
-**LLM reasoning panel** (real GPT-4o output, not a placeholder):
+The deterministic signal values are also pinned by
+`tests/test_demo_example.py`, so if this README block ever drifts from
+what the engine computes, CI fails.
 
-- Strengths: "5.5 years in ML engineering, meets experience requirement" · "Proficient in Python, PyTorch, FastAPI, and Docker" · "Strong MLOps background with AWS experience" · "Experience with LLM pipelines aligns with preferred skills"
+With OpenAI enabled, the LLM adds its bounded signal (≤ 25 points at
+`llm_confidence = 1.0`); a calibrated confidence around 0.75 lifts this
+JD into PRIORITY. The reasoning panel from a live GPT-4o session on this
+JD (illustrative — LLM output is stochastic and not reproducible by
+design; it is captured per-decision for replay):
+
+- Strengths: "6 years in ML engineering, meets experience requirement" · "Proficient in Python, PyTorch, FastAPI, and Docker" · "Strong MLOps background with AWS experience" · "Experience with LLM pipelines aligns with preferred skills"
 - Gaps: "No explicit mention of Kubernetes experience" · "Lacks direct mention of LangChain experience"
 - Risks: "Potential gap in Kubernetes could affect deployment tasks"
 - Talking points (5, copy-pasteable for cover letter)
-
-**I acted on it.** Applied that day, adapting the talking points into
-the cover letter and emphasizing the gap-mitigation in the email body.
 
 ### How I read the verdicts in practice
 
@@ -115,7 +127,7 @@ the cover letter and emphasizing the gap-mitigation in the email body.
 |---|---|
 | **PRIORITY** (≥80) | Apply same day. Use the talking points; address gaps in cover letter. |
 | **APPLY** (65–80) | Apply within the week. Read the trace first — if `near_threshold_flag = True` (within 3 points of REVIEW), check the LLM gaps before drafting. |
-| **REVIEW** (50–65 OR dealbreaker hit on a borderline score) | Read the JD manually. The system flags this when it can't be confident. About 30% of my real-world JDs land here. |
+| **REVIEW** (50–65) | Read the JD manually. The system flags this when it can't be confident. About 30% of my real-world JDs land here. |
 | **SKIP** (<50) | Trust the system. Move on. |
 | **PARSE_FAILURE** (orthogonal — not a score tier) | The JD couldn't be parsed reliably (`parse_confidence < 0.5`). `apply_score` is `None` (not 0) — score is undefined, not "0% match". Re-paste a cleaner copy of the JD or read it manually. |
 
@@ -164,10 +176,14 @@ contract.
 
 ## 4. The decision formula
 
-Hard filters (applied BEFORE the weighted sum):
+Hard filters (applied BEFORE the weighted sum, in this order):
 
-- `dealbreaker_hit == True`        → verdict `SKIP` (score = 0)
-- `parse_confidence < 0.5`          → verdict `PARSE_FAILURE` (score = `None`, undefined)
+1. `parse_confidence < 0.5`  → verdict `PARSE_FAILURE` (score = `None`, undefined)
+2. `dealbreaker_hit == True` → verdict `SKIP` (score = 0)
+
+Input quality is checked first on purpose: a dealbreaker inferred from a
+JD the parser couldn't reliably read is itself unreliable, so garbage
+input yields PARSE_FAILURE — never a confident-looking SKIP.
 
 Otherwise:
 
@@ -217,9 +233,12 @@ The LLM contributes in exactly two ways:
 The LLM does **not** define the decision boundary, control thresholds,
 override scoring logic, or recompute any signal.
 
-If the LLM call fails (network error, schema violation, retry exhausted),
-the decision still ships — with `reasoning=None` and
-`llm_confidence=0.0`. The integration test
+If the LLM call fails (network error, rate limit, timeout, schema
+violation, retry exhausted), the decision still ships — with
+`reasoning=None` and `llm_confidence=0.0`. Both failure classes are
+tested: `test_llm_reasoning.py::TestTransportFailures` proves a dead
+network cannot crash an evaluation (each API request is also bounded by
+an explicit 30-second timeout), and
 `test_orchestrator.py::test_dealbreaker_forces_skip_regardless_of_llm`
 proves that an LLM returning `llm_confidence=1.0` cannot override a
 dealbreaker SKIP verdict.
@@ -262,25 +281,27 @@ self-imposed constraint is the integrity claim of the project.
 The above is only credible if the system actually behaves the way the
 spec says. Three layers of evidence in the repo:
 
-- **267 hermetic unit tests** covering schemas, the deterministic
-  scorer, the parser, every signal, persistence (with append-only
-  contract), the LLM Protocol seam (with retry-or-fallback), the
-  orchestrator end-to-end, and the README contract itself. Runtime: ~1–2
-  seconds on a developer laptop. No network, no model downloads.
-- **Cross-environment determinism verified to 1e-9 precision** across
-  local pytest, GitHub Actions CI, and the live HuggingFace Space. For
-  identical `(JD, profile)` input, the `apply_score` and `verdict` are
-  identical to floating-point bit on all three. Variance attributable
-  to the deterministic core: `0.0`. (LLM output is stochastic but
+- **A 300+ test hermetic suite** covering schemas, the deterministic
+  scorer, the parser (including adversarial extraction cases — prose
+  like "Requirements" must never produce phantom skills), every signal,
+  persistence (with append-only contract), the LLM Protocol seam (with
+  retry-or-fallback AND transport-failure wrapping), the orchestrator
+  end-to-end, and the README contract itself. Runtime: ~1–2 seconds on
+  a developer laptop. No network, no model downloads.
+- **Determinism by construction, enforced in tests.** The scorer is a
+  pure function (no I/O imports — grep-tested), the embedding model is
+  pinned to an exact revision in both the runtime and the Docker
+  pre-warm (a test fails if the two pins drift), and same-input →
+  same-output is asserted at the extraction, signal, and scorer layers.
+  `python -m scripts.demo_example` reproduces the README's Example B
+  numbers from source on any machine. (LLM output is stochastic but
   bounded at 25% weight and captured per-decision for replay.)
 - **CI-enforced architectural invariants** in `.github/workflows/ci.yml`:
-  three-job gate (privacy audit · 267-test suite · auto-deploy to HF
-  Space). Privacy audit fails if any internal artefact leaks into git.
-  Tests gate the deploy. Branch protection on `main` enforces the
-  whole pipeline.
+  four-job gate (privacy audit · hermetic test suite · ruff + mypy lint
+  and type gates · auto-deploy to HF Space). Privacy audit fails if any
+  internal artefact leaks into git. Tests, lint, and types all gate the
+  deploy. Branch protection on `main` enforces the whole pipeline.
 
-A frozen artifact + executable verifier are stored privately in the
-repo's gitignored `MEMORY/` directory; both are runnable from any
-clone of the repo at the same commit. The README itself is contract-
-tested — formula values quoted here must match `src/config.py` exactly,
-or CI fails.
+The README itself is contract-tested — formula values quoted here must
+match `src/config.py` exactly, and Example B's deterministic signal
+values are pinned by `tests/test_demo_example.py` — drift fails CI.

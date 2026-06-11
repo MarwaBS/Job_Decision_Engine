@@ -22,13 +22,16 @@ rule (not the technology) is what protects us from drift.
 
 from __future__ import annotations
 
-import os
-
 from src.schemas import Thresholds, Weights
 
 # ── Engine identity ──────────────────────────────────────────────────────────
 
-ENGINE_VERSION: str = "0.1.0"
+# 0.2.0: skill extraction gained boundary-anchored alias matching, the
+# `on_site_only` dealbreaker stopped firing on workplace-silent JDs, and the
+# parse-confidence hard filter now precedes the dealbreaker filter. Same JD +
+# profile can score differently than under 0.1.0 — hence the bump (decisions
+# persist the engine_version they were scored with).
+ENGINE_VERSION: str = "0.2.0"
 WEIGHTS_VERSION: str = "v1.0"
 THRESHOLDS_VERSION: str = "v1.0"
 
@@ -72,13 +75,7 @@ verdict itself.
 # ── Hard-filter thresholds (architecture §6) ─────────────────────────────────
 
 MIN_PARSE_CONFIDENCE: float = 0.5
-"""If `Signals.parse_confidence < MIN_PARSE_CONFIDENCE`, the scorer returns
-REVIEW regardless of the weighted sum. See architecture §6, "Hard filters"."""
-
-
-# ── LLM cost ceiling (architecture §7, used by Step 4) ───────────────────────
-
-DAILY_COST_CEILING_USD: float = float(os.getenv("DAILY_COST_CEILING_USD", "5.0"))
-"""Daily USD spend cap for the LLM reasoning layer. Not consumed in Step 2
-(scorer is LLM-free), exposed here so Step 4 inherits the same configuration
-surface without re-deriving it."""
+"""If `Signals.parse_confidence < MIN_PARSE_CONFIDENCE`, the scorer
+short-circuits to the PARSE_FAILURE verdict with `apply_score=None` —
+the score is undefined when the JD could not be parsed (BUG-004). See
+architecture §6, "Hard filters"."""

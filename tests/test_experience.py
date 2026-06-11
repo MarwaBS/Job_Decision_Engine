@@ -44,14 +44,17 @@ class TestExperienceMatch:
         """3 years candidate, 5 years required → 0.6."""
         assert compute_experience_match(_job(5.0), _profile(3.0)) == pytest.approx(0.6)
 
-    @pytest.mark.parametrize("have,required,expected", [
-        (0.0, 5.0, 0.0),
-        (1.0, 5.0, 0.2),
-        (2.5, 5.0, 0.5),
-        (4.9, 5.0, 0.98),
-        (5.0, 5.0, 1.0),
-        (100.0, 5.0, 1.0),  # capped
-    ])
+    @pytest.mark.parametrize(
+        "have,required,expected",
+        [
+            (0.0, 5.0, 0.0),
+            (1.0, 5.0, 0.2),
+            (2.5, 5.0, 0.5),
+            (4.9, 5.0, 0.98),
+            (5.0, 5.0, 1.0),
+            (100.0, 5.0, 1.0),  # capped
+        ],
+    )
     def test_parametrized(self, have, required, expected):
         got = compute_experience_match(_job(required), _profile(have))
         assert got == pytest.approx(expected, abs=1e-9)

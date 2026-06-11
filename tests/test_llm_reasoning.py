@@ -31,7 +31,6 @@ from src.llm.reasoning import (
 )
 from src.schemas import CandidateProfile, ParsedJob, ReasoningOutput, Seniority, Signals
 
-
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 
 
@@ -59,8 +58,11 @@ def _profile() -> CandidateProfile:
 
 def _signals() -> Signals:
     return Signals(
-        skills_match=0.8, experience_match=1.0,
-        semantic_similarity=0.7, llm_confidence=0.75, role_level_fit=1.0,
+        skills_match=0.8,
+        experience_match=1.0,
+        semantic_similarity=0.7,
+        llm_confidence=0.75,
+        role_level_fit=1.0,
     )
 
 
@@ -105,9 +107,7 @@ class TestMockReasoner:
 class TestFailingReasoner:
     def test_always_raises(self):
         with pytest.raises(LLMReasoningFailed):
-            FailingReasoner().reason(
-                job=_job(), profile=_profile(), signals=_signals()
-            )
+            FailingReasoner().reason(job=_job(), profile=_profile(), signals=_signals())
 
 
 # ── ReasoningOutput schema contract ──────────────────────────────────────────
@@ -205,6 +205,93 @@ class TestPromptVersioning:
         assert "python" in rendered.lower()
 
 
+# ── Transport failures: the "decision still ships" contract ─────────────────
+
+
+class TestTransportFailures:
+    """Network errors / rate limits / timeouts must surface as
+    `LLMReasoningFailed` — the ONE exception type the orchestrator catches.
+
+    Regression guard: only schema violations used to be wrapped, so an
+    `openai.APIConnectionError` propagated straight through `evaluate_job`
+    and crashed the evaluation, contradicting the README §5 claim that the
+    decision ships with reasoning=None on LLM failure.
+
+    `openai` is a pinned runtime dependency (requirements.txt) and is
+    installed in CI; these tests stay hermetic — the fake client raises
+    before any network I/O.
+    """
+
+    def _reasoner_with_failing_transport(self, exc: Exception):
+        from src.llm.reasoning import OpenAIReasoner
+
+        class _FailingCompletions:
+            def create(self, **_kwargs):
+                raise exc
+
+        class _FailingChat:
+            completions = _FailingCompletions()
+
+        class _FailingClient:
+            chat = _FailingChat()
+
+        reasoner = OpenAIReasoner(api_key="sk-test-not-a-real-key")
+        reasoner._client = _FailingClient()
+        return reasoner
+
+    def test_connection_error_raises_llm_reasoning_failed(self):
+        import httpx
+        from openai import APIConnectionError
+
+        reasoner = self._reasoner_with_failing_transport(
+            APIConnectionError(request=httpx.Request("POST", "https://api.openai.com"))
+        )
+        with pytest.raises(LLMReasoningFailed):
+            reasoner.reason(job=_job(), profile=_profile(), signals=_signals())
+
+    def test_timeout_raises_llm_reasoning_failed(self):
+        import httpx
+        from openai import APITimeoutError
+
+        reasoner = self._reasoner_with_failing_transport(
+            APITimeoutError(request=httpx.Request("POST", "https://api.openai.com"))
+        )
+        with pytest.raises(LLMReasoningFailed):
+            reasoner.reason(job=_job(), profile=_profile(), signals=_signals())
+
+    def test_decision_ships_on_network_error(self):
+        """End-to-end: a network-dead reasoner must not crash evaluate_job."""
+        import httpx
+        from openai import APIConnectionError
+
+        from src.db import InMemoryStore
+        from src.engine.orchestrator import evaluate_job
+        from src.signals.semantic import MockEmbeddingProvider
+
+        store = InMemoryStore()
+        decision = evaluate_job(
+            "Title: Senior ML Engineer\n5+ years of experience with Python, PyTorch.",
+            _profile(),
+            store=store,
+            reasoner=self._reasoner_with_failing_transport(
+                APIConnectionError(
+                    request=httpx.Request("POST", "https://api.openai.com")
+                )
+            ),
+            embedding_provider=MockEmbeddingProvider(),
+        )
+        assert decision.reasoning is None
+        assert decision.signals.llm_confidence == 0.0
+        assert store.count("decisions") == 1
+
+    def test_request_timeout_is_explicitly_bounded(self):
+        """The SDK default (~10 min) is unacceptable behind a UI spinner —
+        the per-request timeout must be set and sane."""
+        from src.llm.reasoning import OpenAIReasoner
+
+        assert 0 < OpenAIReasoner._REQUEST_TIMEOUT_SECONDS <= 120
+
+
 # ── LLM-layer module purity: no I/O at import time ───────────────────────────
 
 
@@ -213,9 +300,9 @@ class TestLLMModulePurity:
         """Lazy import: the module must load on a machine without openai."""
         from pathlib import Path
 
-        src = (
-            Path(__file__).parent.parent / "src" / "llm" / "reasoning.py"
-        ).read_text(encoding="utf-8")
+        src = (Path(__file__).parent.parent / "src" / "llm" / "reasoning.py").read_text(
+            encoding="utf-8"
+        )
         # openai must only appear inside a function body (lazy import), not at
         # module top level. Quick heuristic: no "import openai" at col 0.
         for line in src.splitlines():
@@ -226,6 +313,4 @@ class TestLLMModulePurity:
                     "tests should not require openai installed"
                 )
             if stripped == "from openai import OpenAI":
-                pytest.fail(
-                    "src/llm/reasoning.py has top-level OpenAI import"
-                )
+                pytest.fail("src/llm/reasoning.py has top-level OpenAI import")

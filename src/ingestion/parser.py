@@ -6,15 +6,15 @@ score in [0, 1], and a list of `parse_warnings`.
 
 Strategy: regex + heuristics only. No LLM. Intentionally lightweight —
 `parse_confidence` surfaces how much structure was actually recovered, and
-a confidence below `config.MIN_PARSE_CONFIDENCE` routes the decision to
-REVIEW at scoring time.
+a confidence below `config.MIN_PARSE_CONFIDENCE` short-circuits scoring to
+the PARSE_FAILURE verdict (BUG-004 — the score is undefined, not "0%").
 
 Extracted fields (each contributes to `parse_confidence` when found):
 
     title                   (required — falls back to "Untitled Role")
     company                 (optional)
     location                (optional)
-    remote                  (boolean, default False)
+    remote                  (True/False/None — None when the JD is silent)
     seniority               (optional)
     years_required          (optional)
     required_skills         (taxonomy-matched from the text)
@@ -30,49 +30,75 @@ from __future__ import annotations
 
 import hashlib
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 from src.schemas import Job, ParsedJob, Seniority
 from src.signals.skills import _ALIAS_PATTERNS, SKILLS_TAXONOMY
 
-
 # ── Regex patterns ───────────────────────────────────────────────────────────
 
+# `\s*+` (possessive, py3.11+) where a `\s*` sits against an OPTIONAL colon:
+# the possessive forbids re-splitting the whitespace run during backtracking,
+# which is what turns "header + long spaces + junk" lines quadratic.
 _TITLE_LINE_PATTERN = re.compile(
-    r"^(?:title|position|role|job\s*title)\s*:?\s*(.+?)\s*$",
+    r"^(?:title|position|role|job\s*title)\s*+:?\s*(.+?)\s*$",
     re.IGNORECASE,
 )
 _COMPANY_LINE_PATTERN = re.compile(
-    r"^(?:company|employer|organization)\s*:?\s*(.+?)\s*$",
+    r"^(?:company|employer|organization)\s*+:?\s*(.+?)\s*$",
     re.IGNORECASE,
 )
 _LOCATION_LINE_PATTERN = re.compile(
-    r"^(?:location|based\s+in)\s*:?\s*(.+?)\s*$",
+    r"^(?:location|based\s+in)\s*+:?\s*(.+?)\s*$",
     re.IGNORECASE,
 )
+# Quantifier discipline (applies to every pattern in this module): never
+# leave two `\s*` adjacent through an optional element ("\s*\+?\s*") — that
+# shape backtracks polynomially on long whitespace runs in user-pasted text
+# (CodeQL py/polynomial-redos). Optional groups must contain a required
+# character that anchors any inner whitespace.
+# Years are 1-2 digit numbers anchored against digit runs on both sides
+# (`(?<!\d)...(?!\d)`): unbounded `(\d+)` lets a pasted blob of digits match
+# at every offset, turning the search quadratic ("many repetitions of '9'" —
+# the second half of the same CodeQL finding). Bounding also stops year-like
+# numbers ("2026") from being misread as an experience requirement.
 _YEARS_PATTERN = re.compile(
-    r"(\d+)\s*\+?\s*(?:to\s*\d+\s*)?(?:years?|yrs?)\s+of\s+experience"
-    r"|(\d+)\s*\+\s*(?:years?|yrs?)"
-    r"|(\d+)\s*(?:-|to|–)\s*\d+\s*(?:years?|yrs?)",
+    r"(?<!\d)(\d{1,2})(?!\d)(?:\s*+\+)?\s+(?:to\s+\d{1,2}\s+)?(?:years?|yrs?)\s+of\s+experience"
+    r"|(?<!\d)(\d{1,2})(?!\d)\s*\+\s*(?:years?|yrs?)"
+    r"|(?<!\d)(\d{1,2})(?!\d)\s*(?:-|to|–)\s*\d{1,2}\s*(?:years?|yrs?)",
     re.IGNORECASE,
 )
 _REMOTE_PATTERN = re.compile(r"\b(?:remote|work\s+from\s+home|wfh)\b", re.IGNORECASE)
 _HYBRID_PATTERN = re.compile(r"\bhybrid\b", re.IGNORECASE)
 _ONSITE_PATTERN = re.compile(r"\b(?:on[-\s]?site|in[-\s]?office)\b", re.IGNORECASE)
 _SALARY_PATTERN = re.compile(
-    r"\$\s*(\d{2,3})\s*[kK]?\s*(?:-|to|–)\s*\$?\s*(\d{2,3})\s*[kK]?",
+    # Two shapes: "$100k-$150k" / "$100 - $150" (k-implied) and the most
+    # common US-JD format "$100,000 - $150,000" (comma thousands).
+    #
+    # Quantifier discipline (ReDoS): no two `\s*` may sit adjacent through an
+    # optional element (`\s*[kK]?\s*` backtracks polynomially on long space
+    # runs — flagged by CodeQL py/polynomial-redos). Each optional group here
+    # contains a required character, so every `\s` repetition is anchored.
+    r"\$\s*(\d{2,3}(?:,\d{3})*)"  # low bound, optionally comma-grouped
+    r"(?:\s?[kK])?"  # optional thousands suffix ("150k" / "150 k")
+    r"\s*(?:-|to|–)\s*"  # range separator
+    r"(?:\$\s*)?(\d{2,3}(?:,\d{3})*)"  # high bound
+    r"(?:\s?[kK])?",
 )
 _NICE_TO_HAVE_HEADING = re.compile(
     r"(?i)(?:preferred|nice[-\s]?to[-\s]?have|bonus|plus|would\s+be\s+nice)"
-    r"\s*(?:qualifications|skills|experience)?\s*:?"
+    r"\s*+(?:qualifications|skills|experience)?\s*+:?"
 )
 
 _SENIORITY_KEYWORDS: list[tuple[re.Pattern[str], Seniority]] = [
     (re.compile(r"\bprincipal\b", re.IGNORECASE), Seniority.PRINCIPAL),
     (re.compile(r"\bstaff\b", re.IGNORECASE), Seniority.STAFF),
     (re.compile(r"\b(?:senior|sr\.?)\b", re.IGNORECASE), Seniority.SENIOR),
-    (re.compile(r"\b(?:junior|jr\.?|entry[-\s]?level)\b", re.IGNORECASE), Seniority.JUNIOR),
+    (
+        re.compile(r"\b(?:junior|jr\.?|entry[-\s]?level)\b", re.IGNORECASE),
+        Seniority.JUNIOR,
+    ),
     (re.compile(r"\b(?:mid[-\s]?level|mid)\b", re.IGNORECASE), Seniority.MID),
 ]
 
@@ -104,7 +130,7 @@ def parse_job(
         # Empty input → minimal Job with confidence 0
         return Job(
             content_hash="sha256:" + hashlib.sha256(b"").hexdigest(),
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             source=source,
             source_url=source_url,
             raw_text=raw_text,
@@ -150,7 +176,7 @@ def parse_job(
 
     return Job(
         content_hash=content_hash,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
         source=source,
         source_url=source_url,
         raw_text=raw_text,
@@ -225,14 +251,22 @@ def _extract_location(text: str) -> str | None:
     return None
 
 
-def _extract_remote(text: str) -> bool:
-    """Return True if the JD mentions remote/WFH and does NOT mention on-site.
+def _extract_remote(text: str) -> bool | None:
+    """Tri-state workplace extraction.
 
-    Hybrid is treated as "partially remote" → True. On-site-only → False.
+    - True: the JD mentions remote / WFH / hybrid (hybrid = partially remote).
+    - False: the JD explicitly mentions on-site / in-office (and not remote).
+    - None: the JD is silent on workplace. Absence of evidence is NOT
+      evidence of on-site — downstream consumers (the `on_site_only`
+      dealbreaker) must only fire on an explicit False, per the same
+      "don't penalise missing data" principle the experience and
+      role-level signals follow.
     """
     if _REMOTE_PATTERN.search(text) or _HYBRID_PATTERN.search(text):
         return True
-    return False
+    if _ONSITE_PATTERN.search(text):
+        return False
+    return None
 
 
 def _any_workplace_cue(text: str) -> bool:
@@ -281,20 +315,20 @@ def _extract_years(text: str) -> float | None:
     return None
 
 
-def _extract_salary(
-    text: str, warnings: list[str]
-) -> tuple[int, int] | None:
+def _extract_salary(text: str, warnings: list[str]) -> tuple[int, int] | None:
     """Extract a salary range in USD. Returns None if not present.
 
-    Only supports $NNN-$NNN shapes with a 'k' or 'K' suffix (or bare numbers
-    large enough to be annual salaries). Anything else gets a warning and
-    returns None.
+    Supports "$NNNk-$NNNk" shapes and the comma-thousands form
+    "$100,000 - $150,000". A JD that mentions dollar amounts in any other
+    shape gets a `salary_not_parsed` warning instead of a silent miss.
     """
     m = _SALARY_PATTERN.search(text)
     if not m:
+        if re.search(r"\$\s*\d", text):
+            warnings.append("salary_not_parsed")
         return None
-    low = int(m.group(1))
-    high = int(m.group(2))
+    low = int(m.group(1).replace(",", ""))
+    high = int(m.group(2).replace(",", ""))
     # Normalize "k" notation: "$100-$150" interpreted as 100k-150k if both
     # numbers are small (<1000), otherwise taken as absolute values.
     if low < 1000 and high < 1000:

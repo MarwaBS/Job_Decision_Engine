@@ -1,0 +1,9 @@
+# Job Decision Engine — pinned dev/CI tooling.
+#
+# Runtime deps live in requirements.txt. These are the lint/type gates that
+# CI's `lint` job enforces (ruff check, ruff format --check, mypy) — pinned
+# exactly so a tool upgrade can never silently change what "green" means.
+
+ruff==0.15.16
+mypy==2.1.0
+types-PyYAML==6.0.12.20260518

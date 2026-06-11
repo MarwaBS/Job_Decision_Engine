@@ -57,9 +57,10 @@ def is_overqualified(job: ParsedJob, profile: CandidateProfile) -> bool:
     """Return True if the candidate has significantly more experience than required.
 
     Heuristic: `have >= 2 * required` OR `have - required > 5`.
-    This signal does NOT feed the deterministic score — the LLM layer
-    consumes it as a "risks" input. Exposed here so the scorer and the LLM
-    reasoner share one definition of "over-qualified".
+    This signal does NOT feed the deterministic score. It is part of the
+    experience module's public API so any consumer (UI panels, prompt
+    construction) shares one definition of "over-qualified" instead of
+    re-deriving the heuristic.
     """
     required = job.years_required
     if required is None or required <= 0:

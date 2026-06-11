@@ -28,7 +28,6 @@ from typing import Any, Protocol, runtime_checkable
 
 from src.schemas import CandidateProfile, ParsedJob
 
-
 # ── Provider Protocol ────────────────────────────────────────────────────────
 
 
@@ -190,7 +189,7 @@ def _cosine_similarity(a: tuple[float, ...], b: tuple[float, ...]) -> float:
     """
     if len(a) != len(b):
         raise ValueError(f"vector dimension mismatch: {len(a)} vs {len(b)}")
-    dot = sum(x * y for x, y in zip(a, b))
+    dot = sum(x * y for x, y in zip(a, b, strict=True))
     mag_a = math.sqrt(sum(x * x for x in a))
     mag_b = math.sqrt(sum(y * y for y in b))
     if mag_a == 0.0 or mag_b == 0.0:

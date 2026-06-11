@@ -19,7 +19,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 
 from src.db import MongoStore, Store
 from src.schemas import CandidateProfile

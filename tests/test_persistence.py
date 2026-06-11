@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 import pytest
 
 from src.db import InMemoryStore
@@ -38,14 +37,19 @@ def _job() -> Job:
 
 def _decision() -> DecisionResult:
     sig = Signals(
-        skills_match=0.8, experience_match=1.0,
-        semantic_similarity=0.7, llm_confidence=0.85, role_level_fit=1.0,
+        skills_match=0.8,
+        experience_match=1.0,
+        semantic_similarity=0.7,
+        llm_confidence=0.85,
+        role_level_fit=1.0,
     )
     return DecisionResult(
         apply_score=85.0,
         verdict=Verdict.PRIORITY,
         signals=sig,
-        weights=Weights(skills=0.30, experience=0.20, semantic=0.15, llm=0.25, role=0.10),
+        weights=Weights(
+            skills=0.30, experience=0.20, semantic=0.15, llm=0.25, role=0.10
+        ),
         thresholds_version="v1.0",
         decision_trace=DecisionTrace(
             dominant_signal="skills_match",
@@ -125,7 +129,10 @@ class TestOutcomeLifecycle:
         outcome = store.list_outcomes()[0]
         assert len(outcome["stages"]) == 4
         assert [s["stage"] for s in outcome["stages"]] == [
-            "SUBMITTED", "CALLBACK", "INTERVIEW", "OFFER",
+            "SUBMITTED",
+            "CALLBACK",
+            "INTERVIEW",
+            "OFFER",
         ]
         assert outcome["final_stage"] == "OFFER"
 

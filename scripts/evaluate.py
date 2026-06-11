@@ -25,7 +25,6 @@ from typing import Any
 
 from src.db import MongoStore, Store
 
-
 MIN_OUTCOMES_FOR_EVALUATION: int = 50
 """Hard gate. Below this, the script MUST return the STUB message.
 
@@ -103,9 +102,7 @@ def evaluate(store: Store) -> EvaluationResult:
 # ── Internals ────────────────────────────────────────────────────────────────
 
 
-def _compute_metrics(
-    outcomes: list[dict[str, Any]], store: Store
-) -> dict[str, float]:
+def _compute_metrics(outcomes: list[dict[str, Any]], store: Store) -> dict[str, float]:
     """Compute the architecture §8 metric set.
 
     - precision_apply: (callbacks + interviews + offers) / applications
@@ -126,15 +123,16 @@ def _compute_metrics(
         return any(s.get("stage") in names for s in stages)
 
     positive = sum(
-        1 for o in outcomes
+        1
+        for o in outcomes
         if _had_any(o.get("stages", []), "CALLBACK", "INTERVIEW", "OFFER")
     )
     interviews = sum(
-        1 for o in outcomes
-        if _had_any(o.get("stages", []), "INTERVIEW", "OFFER")
+        1 for o in outcomes if _had_any(o.get("stages", []), "INTERVIEW", "OFFER")
     )
     fast_rejections = sum(
-        1 for o in outcomes
+        1
+        for o in outcomes
         if o.get("final_stage") == "REJECTED"
         and (o.get("time_to_first_response_days") or 999) <= 7
     )
@@ -146,15 +144,20 @@ def _compute_metrics(
     }
 
     # precision_priority requires joining outcomes to their originating
-    # decisions. Keep it simple: fetch all decisions, index by id.
-    decisions = {d.get("_id"): d for d in store.list_decisions(limit=100_000)}
+    # decisions. Outcomes store `decision_id` as the STRING form of the
+    # inserted id (db.py returns `str(inserted_id)`), while Mongo documents
+    # carry a raw ObjectId in `_id` — so the index key must be stringified
+    # or the join silently never matches on the production path.
+    decisions = {str(d.get("_id")): d for d in store.list_decisions(limit=100_000)}
     priority_outcomes = [
-        o for o in outcomes
-        if decisions.get(o.get("decision_id"), {}).get("verdict") == "PRIORITY"
+        o
+        for o in outcomes
+        if decisions.get(str(o.get("decision_id")), {}).get("verdict") == "PRIORITY"
     ]
     if priority_outcomes:
         priority_positive = sum(
-            1 for o in priority_outcomes
+            1
+            for o in priority_outcomes
             if _had_any(o.get("stages", []), "CALLBACK", "INTERVIEW", "OFFER")
         )
         metrics["precision_priority"] = priority_positive / len(priority_outcomes)

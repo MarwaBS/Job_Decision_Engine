@@ -1,0 +1,35 @@
+# Tooling configuration for the lint/type gates enforced by CI (ci.yml `lint`
+# job). This project is an application, not a package — there is no [project]
+# build section on purpose; deps are pinned in requirements*.txt.
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "UP", # pyupgrade
+    "B",  # bugbear
+]
+ignore = [
+    "E501", # line length is owned by the formatter (ruff format)
+]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["src", "scripts", "streamlit_app"]
+check_untyped_defs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+# Lazy-imported, ships no type stubs. The provider wrapper types its own
+# surface (embed() -> tuple[float, ...]), so the untyped boundary is one line.
+module = ["sentence_transformers.*"]
+ignore_missing_imports = true

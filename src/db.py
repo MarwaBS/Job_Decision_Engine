@@ -28,7 +28,6 @@ Append-only contract (locked per DT-010):
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
 from typing import Any, Protocol, runtime_checkable
 
 from src.schemas import (
@@ -39,7 +38,6 @@ from src.schemas import (
     Outcome,
     OutcomeStage,
 )
-
 
 # ── Store Protocol ───────────────────────────────────────────────────────────
 
@@ -141,9 +139,9 @@ class InMemoryStore:
     def get_active_profile(self) -> CandidateProfile | None:
         for doc in self._collections["profiles"]:
             if doc.get("active"):
-                return CandidateProfile.model_validate({
-                    k: v for k, v in doc.items() if k != "_id"
-                })
+                return CandidateProfile.model_validate(
+                    {k: v for k, v in doc.items() if k != "_id"}
+                )
         return None
 
     # ── Jobs ─────────────────────────────────────────────────────────────────
@@ -244,7 +242,7 @@ class MongoStore:
             raise RuntimeError(
                 "MongoDB URI missing. Set MONGODB_URI env var or pass uri=."
             )
-        self._client = MongoClient(uri, tz_aware=True)
+        self._client: Any = MongoClient(uri, tz_aware=True)
         self._db = self._client[database]
 
     # ── Profiles ─────────────────────────────────────────────────────────────
@@ -280,7 +278,9 @@ class MongoStore:
 
     def upsert_job(self, job: Job) -> str:
         doc = job.model_dump(mode="json")
-        existing = self._db.jobs.find_one({"content_hash": doc["content_hash"]}, {"_id": 1})
+        existing = self._db.jobs.find_one(
+            {"content_hash": doc["content_hash"]}, {"_id": 1}
+        )
         if existing:
             return str(existing["_id"])
         res = self._db.jobs.insert_one(doc)
@@ -293,9 +293,7 @@ class MongoStore:
         return str(res.inserted_id)
 
     def list_decisions(self, limit: int = 100) -> list[dict[str, Any]]:
-        return list(
-            self._db.decisions.find().sort("_id", -1).limit(limit)
-        )
+        return list(self._db.decisions.find().sort("_id", -1).limit(limit))
 
     # ── Outcomes (state machine) ─────────────────────────────────────────────
 
@@ -327,9 +325,7 @@ class MongoStore:
             )
 
     def list_outcomes(self, limit: int = 1000) -> list[dict[str, Any]]:
-        return list(
-            self._db.outcomes.find().sort("_id", -1).limit(limit)
-        )
+        return list(self._db.outcomes.find().sort("_id", -1).limit(limit))
 
     # ── Feedback ─────────────────────────────────────────────────────────────
 
@@ -344,11 +340,6 @@ class MongoStore:
         if collection not in valid:
             raise KeyError(f"unknown collection {collection!r}")
         return self._db[collection].count_documents({})
-
-
-def _now_utc() -> datetime:
-    """Single UTC-now source — makes tests easier to pin deterministically."""
-    return datetime.now(timezone.utc)
 
 
 __all__ = ["Store", "InMemoryStore", "MongoStore"]
