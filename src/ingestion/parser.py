@@ -316,16 +316,25 @@ def _extract_years(text: str) -> float | None:
 
 
 def _extract_salary(text: str, warnings: list[str]) -> tuple[int, int] | None:
-    """Extract a salary range in USD. Returns None if not present.
+    """Extract an ANNUAL salary range in USD. Returns None if not present.
 
     Supports "$NNNk-$NNNk" shapes and the comma-thousands form
     "$100,000 - $150,000". A JD that mentions dollar amounts in any other
     shape gets a `salary_not_parsed` warning instead of a silent miss.
+    Non-annual rates ("$600 - $800 per day") are refused with the same
+    warning — "$600/day" must never persist as a $600,000 annual salary.
     """
     m = _SALARY_PATTERN.search(text)
     if not m:
         if re.search(r"\$\s*\d", text):
             warnings.append("salary_not_parsed")
+        return None
+    if re.match(
+        r"\s*(?:/|per\s+)(?:hour|hr|day|week|month)\b", text[m.end() :], re.IGNORECASE
+    ):
+        # A rate period right after the range means this is not an annual
+        # figure — refuse rather than mis-normalise.
+        warnings.append("salary_not_parsed")
         return None
     low = int(m.group(1).replace(",", ""))
     high = int(m.group(2).replace(",", ""))

@@ -269,6 +269,23 @@ class TestSalary:
         assert j.parsed.salary_range_usd is None
         assert "salary_not_parsed" in j.parse_warnings
 
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Rate: $600 - $800 per day",
+            "Rate: $600-$800/day",
+            "Contract: $80 - $120 per hour",
+            "$95-$110/hr DOE",
+        ],
+    )
+    def test_non_annual_rates_are_refused_not_misread(self, text):
+        """ "$600/day" must never persist as a $600,000 annual salary —
+        a rate period right after the range refuses the parse with a
+        warning instead of mis-normalising through the k-heuristic."""
+        j = parse_job(text)
+        assert j.parsed.salary_range_usd is None
+        assert "salary_not_parsed" in j.parse_warnings
+
 
 # ── Pathological input (ReDoS regression guard) ──────────────────────────────
 

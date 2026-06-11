@@ -123,9 +123,53 @@ def _all_skills() -> dict[str, list[str]]:
 _BOUNDARY_START = r"(?<![A-Za-z0-9_])"
 _BOUNDARY_END = r"(?![A-Za-z0-9_])"
 
+# Short aliases that are ALSO ordinary English tokens. Word boundaries alone
+# cannot save these: "send your CV" is not computer vision, "R&D" is not the
+# R language, "go-to-market" is not Golang, "TF-IDF" is not TensorFlow, and
+# "DE Shaw" is not data engineering. These match only in LIST CONTEXT — the
+# dominant way real JDs cite skills ("Python, Go, R", "TS/JS", "(R)",
+# bullet lines): delimited by punctuation/line edges, not flowing prose.
+#
+# Accepted precision/recall tradeoff (documented, deliberate): prose like
+# "experience with Go and Docker" no longer credits `go` — the unambiguous
+# alias ("Golang") still does. High precision wins: a phantom skill inflates
+# the match denominator and silently corrupts scores for every JD, while a
+# prose-only miss costs one alias occurrence on an uncommon phrasing.
+_AMBIGUOUS_TOKENS = frozenset({"go", "r", "cv", "de", "tf", "ts", "js", "py"})
+
+# List-context anchors: an ambiguous token must touch a STRONG delimiter
+# (list punctuation, or a bullet marker at a line start) on at least one
+# side — plain spaces and line edges are how prose presents these words, so
+# they don't count on their own. "Python, Go, R" / "TS/JS" / "(R)" /
+# "- Go" all qualify; "go-to-market", "R&D", "TF-IDF", "send your CV"
+# don't. Residual accepted: a comma directly after the word in flowing
+# prose ("ready to go, and...") still matches — rare in JD text and far
+# cheaper than the phantom-everything failure mode. All quantifiers are
+# bounded (`\s?`) — no star adjacency, so no polynomial backtracking.
+_STRONG_LEAD = r"(?:[,;:/()|]\s?|(?:^|\n)\s?[-•*]\s)"
+_STRONG_TRAIL = r"(?=\s?[,;:/()|])"
+
+
+def _alias_fragment(alias: str) -> str:
+    """One fully-anchored regex fragment for a single alias."""
+    if alias in _AMBIGUOUS_TOKENS:
+        return (
+            r"(?:"
+            + _STRONG_LEAD
+            + alias
+            + _BOUNDARY_END
+            + r"|"
+            + _BOUNDARY_START
+            + alias
+            + _STRONG_TRAIL
+            + r")"
+        )
+    return _BOUNDARY_START + r"(?:" + alias + r")" + _BOUNDARY_END
+
+
 _ALIAS_PATTERNS: dict[str, re.Pattern[str]] = {
     canonical: re.compile(
-        r"(?i)" + _BOUNDARY_START + r"(?:" + "|".join(aliases) + r")" + _BOUNDARY_END,
+        r"(?i)(?:" + "|".join(_alias_fragment(a) for a in aliases) + r")",
     )
     for canonical, aliases in _all_skills().items()
 }
