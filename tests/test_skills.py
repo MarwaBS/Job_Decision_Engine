@@ -89,6 +89,43 @@ class TestExtraction:
         """
         assert phantom not in extract_skills(text).all
 
+    @pytest.mark.parametrize(
+        ("text", "phantom"),
+        [
+            # Ambiguous short aliases are ALSO ordinary English tokens —
+            # word boundaries alone can't disambiguate them. They require
+            # list context (delimiter-adjacent), so flowing prose must
+            # never credit them:
+            ("Please send your CV to jobs@acme.com", "computer vision"),
+            ("attach your CV.", "computer vision"),
+            ("R&D team of 40 engineers", "r"),
+            ("own the go-to-market strategy", "go"),
+            ("we'll go over next steps together", "go"),
+            ("TF-IDF features for ranking", "tensorflow"),
+            ("previously at DE Shaw", "data engineering"),
+        ],
+    )
+    def test_ambiguous_tokens_require_list_context(self, text: str, phantom: str):
+        assert phantom not in extract_skills(text).all
+
+    @pytest.mark.parametrize(
+        ("text", "expected_subset"),
+        [
+            # ...while list-style citations — the dominant JD pattern —
+            # must still extract them:
+            ("Languages: Python, Go, R", {"go", "python", "r"}),
+            ("TS/JS stack", {"javascript", "typescript"}),
+            ("- Go\n- R\n- Python", {"go", "python", "r"}),
+            ("Tools (R, dbt)", {"dbt", "r"}),
+            ("Skills: Python, R.", {"python", "r"}),
+            ("Golang microservices", {"go"}),  # unambiguous alias unaffected
+        ],
+    )
+    def test_ambiguous_tokens_match_in_list_context(
+        self, text: str, expected_subset: set[str]
+    ):
+        assert expected_subset <= set(extract_skills(text).all)
+
     def test_boundary_anchoring_still_matches_real_mentions(self):
         """The anchors must not cost recall on legitimate mentions —
         including the awkward symbol-suffixed aliases (c++, c#) where a

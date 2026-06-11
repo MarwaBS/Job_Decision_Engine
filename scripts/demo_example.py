@@ -1,6 +1,7 @@
-"""Reproduce README "Example B" end-to-end — no API key, no database.
+"""Reproduce the README's Example A and Example B end-to-end — no API key,
+no database.
 
-Every number quoted in the README's Example B block is the output of this
+Every number quoted in the README's example blocks is the output of this
 script, so a stranger can verify the README instead of taking it on faith:
 
     python -m scripts.demo_example
@@ -26,6 +27,21 @@ from src.engine.orchestrator import evaluate_job
 from src.llm.reasoning import FailingReasoner
 from src.schemas import CandidateProfile, Seniority
 from src.signals.semantic import SentenceTransformerProvider
+
+#: The unstructured prose JD behind README Example A — verbatim. No labeled
+#: headers, no years figure, no workplace cue: exactly the JD shape the
+#: parse-confidence hard filter exists for. Structure recovered: a seniority
+#: keyword (0.10) and three taxonomy skills (0.20 + 0.15) = 0.45, below the
+#: MIN_PARSE_CONFIDENCE = 0.5 gate → verdict PARSE_FAILURE, score undefined.
+EXAMPLE_A_JD = """\
+We are seeking a senior platform and AI engineer to join our document
+intelligence group. You will design and ship LLM-powered services on AWS,
+build agentic workflows in Python, and own the reliability of our data
+pipelines end to end. The ideal candidate has deep experience operating
+production machine learning systems at scale and partners closely with
+research, product, and infrastructure teams to bring new capabilities to
+market.
+"""
 
 #: The structured JD behind README Example B — verbatim.
 EXAMPLE_B_JD = """\
@@ -74,12 +90,33 @@ EXAMPLE_PROFILE = CandidateProfile(
 
 
 def main() -> int:
+    provider = SentenceTransformerProvider()
+
+    decision_a = evaluate_job(
+        EXAMPLE_A_JD,
+        EXAMPLE_PROFILE,
+        store=InMemoryStore(),
+        reasoner=FailingReasoner(),
+        embedding_provider=provider,
+    )
+    print("README Example A — reproduced from source (prose JD)")
+    print(f"engine_version:    {decision_a.engine_version}")
+    print(f"parse_confidence:  {decision_a.signals.parse_confidence:.2f}")
+    print(f"verdict:           {decision_a.verdict.value}")
+    score_a = "None (undefined — JD could not be parsed)"
+    if decision_a.apply_score is not None:
+        score_a = f"{decision_a.apply_score:.1f}"
+    print(f"apply_score:       {score_a}")
+    failure = decision_a.decision_trace.failure_mode_detected
+    print(f"failure_mode:      {failure.value if failure else 'none'}")
+    print()
+
     decision = evaluate_job(
         EXAMPLE_B_JD,
         EXAMPLE_PROFILE,
         store=InMemoryStore(),
         reasoner=FailingReasoner(),  # LLM-absent path: llm_confidence = 0.0
-        embedding_provider=SentenceTransformerProvider(),
+        embedding_provider=provider,
     )
     s = decision.signals
     print("README Example B — reproduced from source (LLM-absent mode)")

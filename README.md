@@ -45,41 +45,41 @@ answers on different runs. The decision should be reproducible; the
 
 ## 2. How I use it
 
-Two real examples from my own usage. Both JDs are reproducible test
-fixtures (in the repo); the screenshots / scores below are exactly what
-the system returns for those inputs.
+Two examples, and **both are committed, reproducible fixtures**: the
+exact JD texts live in `scripts/demo_example.py`, one command replays
+them through the real engine, and the deterministic numbers below are
+pinned by `tests/test_demo_example.py` so this section cannot silently
+drift from the code:
 
-> *Snapshot note:* the example outputs and the "4.3 years" / "5.5 years"
-> figures below were captured against my profile as it stood when these
-> runs were recorded. My current `profile.yaml` has `years_experience: 6`;
-> re-running the examples today would shift the experience-derived numbers
-> accordingly. The verdicts (REVIEW for Example A, PRIORITY for Example B)
-> are unchanged.
+```
+python -m scripts.demo_example
+```
 
-### Example A — Adobe Senior ML Engineer (prose JD)
+### Example A — unstructured prose JD (committed fixture `EXAMPLE_A_JD`)
 
-I pasted Adobe's "Platform & AI Engineer" posting as-is. The JD is a
-well-written prose paragraph but has no labeled headers (no `Title:`,
-`Company:`, `Location:` lines).
+The first JD I hit this wall with in real usage was a FAANG posting
+written as polished prose — no labeled headers, no `Title:` /
+`Company:` / `Location:` lines, no explicit years figure. The committed
+fixture reproduces that exact structural shape:
 
 ```
 parse_confidence:  0.45    ← BELOW the MIN_PARSE_CONFIDENCE = 0.5 hard filter
+                            (seniority cue 0.10 + ≥1 skill 0.20 + ≥3 skills 0.15)
 verdict:           PARSE_FAILURE
 failure_mode:      low_parse_confidence
 score:             None    (undefined — the JD couldn't be parsed, so no
                             weighted sum is computed; "N/A" in the UI)
 ```
 
-**What the system was telling me:** "I extracted some skills and a
-years-of-experience number, but I missed enough structural cues that I'm
-not confident I parsed this correctly. Don't trust my numeric score —
-read it yourself." I read it manually. The role required 7+ years of
-AWS data engineering plus deep agentic-AI experience — a stretch given
-my 4.3 years. I skipped it.
+**What the system is saying:** "I extracted some skills and a seniority
+cue, but I missed enough structural cues that I'm not confident I parsed
+this correctly. Don't trust a numeric score — read it yourself." That is
+what I did with the real posting: read it manually, judged the stretch,
+and skipped it.
 
-**The system was right to flag it.** A different design would have
+**The hard filter is the integrity gate.** A different design would have
 soft-weighted the low parse confidence and shipped a confident-looking
-score from garbage parser output. The hard filter is the integrity gate.
+score from garbage parser output.
 
 ### Example B — Acme AI Senior ML Engineer (structured JD, fully reproducible)
 
@@ -303,5 +303,5 @@ spec says. Three layers of evidence in the repo:
   deploy. Branch protection on `main` enforces the whole pipeline.
 
 The README itself is contract-tested — formula values quoted here must
-match `src/config.py` exactly, and Example B's deterministic signal
+match `src/config.py` exactly, and both examples' deterministic signal
 values are pinned by `tests/test_demo_example.py` — drift fails CI.
