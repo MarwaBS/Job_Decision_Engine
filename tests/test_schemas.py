@@ -50,6 +50,7 @@ class TestCandidateProfileDealbreakers:
         with pytest.raises(ValidationError, match="unknown dealbreaker key"):
             _profile(dealbreakers=["requires_10yr_exp"])
 
+
 # ── Signals ──────────────────────────────────────────────────────────────────
 
 
@@ -66,14 +67,17 @@ class TestSignals:
         assert s.dealbreaker_hit is False
         assert s.parse_confidence == 1.0
 
-    @pytest.mark.parametrize("field", [
-        "skills_match", "experience_match", "semantic_similarity", "llm_confidence"
-    ])
+    @pytest.mark.parametrize(
+        "field",
+        ["skills_match", "experience_match", "semantic_similarity", "llm_confidence"],
+    )
     def test_signal_out_of_range_rejected(self, field):
         """Architecture §6: all continuous signals are bounded to [0, 1]."""
         payload = {
-            "skills_match": 0.5, "experience_match": 0.5,
-            "semantic_similarity": 0.5, "llm_confidence": 0.5,
+            "skills_match": 0.5,
+            "experience_match": 0.5,
+            "semantic_similarity": 0.5,
+            "llm_confidence": 0.5,
             "role_level_fit": 0.5,
         }
         payload[field] = 1.5
@@ -83,8 +87,10 @@ class TestSignals:
     def test_role_level_fit_must_be_discrete(self):
         """Architecture §6: role_level_fit ∈ {0, 0.5, 1}."""
         payload = {
-            "skills_match": 0.5, "experience_match": 0.5,
-            "semantic_similarity": 0.5, "llm_confidence": 0.5,
+            "skills_match": 0.5,
+            "experience_match": 0.5,
+            "semantic_similarity": 0.5,
+            "llm_confidence": 0.5,
             "role_level_fit": 0.75,
         }
         with pytest.raises(ValidationError):
@@ -93,8 +99,10 @@ class TestSignals:
     def test_signals_frozen(self):
         """Signals are immutable — crossing a module boundary shouldn't allow mutation."""
         s = Signals(
-            skills_match=0.5, experience_match=0.5,
-            semantic_similarity=0.5, llm_confidence=0.5,
+            skills_match=0.5,
+            experience_match=0.5,
+            semantic_similarity=0.5,
+            llm_confidence=0.5,
             role_level_fit=0.5,
         )
         with pytest.raises(ValidationError):
@@ -107,7 +115,9 @@ class TestSignals:
 class TestWeights:
     def test_valid_weights_sum_to_one(self):
         w = Weights(skills=0.30, experience=0.20, semantic=0.15, llm=0.25, role=0.10)
-        assert w.skills + w.experience + w.semantic + w.llm + w.role == pytest.approx(1.0)
+        assert w.skills + w.experience + w.semantic + w.llm + w.role == pytest.approx(
+            1.0
+        )
 
     def test_weights_sum_not_one_rejected(self):
         """Architecture §6: weights MUST sum to 1.0. Any drift is an error."""

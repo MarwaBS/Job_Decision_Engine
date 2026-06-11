@@ -15,7 +15,6 @@ from src.signals.skills import (
     extract_skills,
 )
 
-
 # ── Taxonomy invariants ──────────────────────────────────────────────────────
 
 
@@ -57,10 +56,58 @@ class TestExtraction:
         assert "aws" in s.tools
 
     def test_word_boundary_avoids_false_positive(self):
-        """The 'R' language alias uses strict word boundary — must not match
-        inside other words like 'architecture' or 'production'."""
+        """The 'R' language alias must not match inside other words like
+        'architecture' or 'production'."""
         s = extract_skills("Architecture and production engineering.")
         assert "r" not in s.tech
+
+    @pytest.mark.parametrize(
+        ("text", "phantom"),
+        [
+            # Every alias is boundary-anchored at COMPILE time, not just the
+            # hand-flagged ones. These are the substrings that previously
+            # produced phantom skills on essentially every real JD:
+            ("Requirements: strong communication skills", "typescript"),  # ...ts
+            ("our platform team ships weekly", "tensorflow"),  # ...tf...
+            ("a happy team environment", "python"),  # ...py
+            ("MongoDB experience preferred", "go"),  # ...go...
+            ("JavaScript developer", "java"),  # prefix of a longer word
+            ("scalable systems", "scala"),  # prefix of a longer word
+            ("the despatch desk", "data engineering"),  # 'de' inside words
+            ("global logistics", "go"),  # ...g(lo)...
+            ("convolutional layers", "computer vision"),  # 'cv' not present
+            ("dragging deadlines", "rag"),  # ...rag...
+        ],
+    )
+    def test_no_substring_phantom_skills(self, text: str, phantom: str):
+        """Adversarial regression guard for the boundary-anchoring bug.
+
+        Aliases compiled WITHOUT word boundaries turned ordinary JD prose
+        into phantom skills ("RequiremenTS" → typescript), silently
+        corrupting skills_match (the highest-weighted signal) and
+        parse_confidence. Real prose must extract nothing it doesn't say.
+        """
+        assert phantom not in extract_skills(text).all
+
+    def test_boundary_anchoring_still_matches_real_mentions(self):
+        """The anchors must not cost recall on legitimate mentions —
+        including the awkward symbol-suffixed aliases (c++, c#) where a
+        naive \\b would fail."""
+        s = extract_skills(
+            "Stack: C++, C#, TS/JS, R, dbt, node.js, PySpark on AWS and GCP."
+        )
+        assert set(s.all) >= {
+            "c++",
+            "c#",
+            "typescript",
+            "javascript",
+            "r",
+            "dbt",
+            "node",
+            "spark",
+            "aws",
+            "gcp",
+        }
 
     def test_empty_text_produces_empty_sets(self):
         s = extract_skills("")
@@ -112,7 +159,9 @@ class TestSkillsMatch:
 
     def test_no_overlap_scores_zero(self):
         job = ParsedJob(
-            title="ML Eng", required_skills=["python"], preferred_skills=["pytorch"],
+            title="ML Eng",
+            required_skills=["python"],
+            preferred_skills=["pytorch"],
         )
         profile = _profile(skills_tech=["scala"])
         assert compute_skills_match(job, profile) == 0.0
@@ -137,7 +186,7 @@ class TestSkillsMatch:
         profile = _profile(
             skills_tech=["python"],
             skills_tools=["pytorch", "mlops"],  # mlops here is wrong bucket but
-            skills_domain=["mlops"],            # _candidate_skill_set flattens
+            skills_domain=["mlops"],  # _candidate_skill_set flattens
         )
         # Profile skill set (lower-cased, deduped): {python, pytorch, mlops}
         # Required matches: {python, pytorch} = 2
@@ -149,6 +198,21 @@ class TestSkillsMatch:
         """Profile free-form entries should match regardless of case."""
         job = ParsedJob(title="ML Eng", required_skills=["python"])
         profile = _profile(skills_tech=["Python"])
+        assert compute_skills_match(job, profile) == pytest.approx(1.0)
+
+    def test_profile_aliases_resolve_to_canonicals(self):
+        """Free-form profile entries are normalised through the taxonomy.
+
+        Extraction emits CANONICAL names ("scikit-learn"); profiles are
+        written by humans ("sklearn", "k8s", "torch"). Without alias
+        resolution those silently never match — the profile side must go
+        through the same vocabulary as the JD side.
+        """
+        job = ParsedJob(
+            title="ML Eng",
+            required_skills=["scikit-learn", "kubernetes", "pytorch"],
+        )
+        profile = _profile(skills_tools=["sklearn", "k8s", "torch"])
         assert compute_skills_match(job, profile) == pytest.approx(1.0)
 
     def test_match_is_deterministic(self):

@@ -21,21 +21,28 @@ import os
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 from pydantic import ValidationError
 
 from src.schemas import CandidateProfile, ParsedJob, ReasoningOutput, Signals
-
 
 # ── Errors ───────────────────────────────────────────────────────────────────
 
 
 class LLMReasoningFailed(RuntimeError):
-    """Raised after the retry-once-then-fail path exhausts.
+    """Raised when the LLM layer cannot produce a valid `ReasoningOutput`.
+
+    Covers BOTH failure classes of architecture §7:
+    - schema failures: the retry-once-then-fail validation path exhausts;
+    - transport failures: network errors, rate limits, timeouts — any
+      `openai.OpenAIError` raised by the API call itself.
 
     Caller (the orchestrator) MUST catch this and substitute
     `reasoning=None` + `llm_confidence=0.0` on the DecisionResult — the
-    scorer continues without the LLM signal.
+    scorer continues without the LLM signal. No other exception type
+    escapes the reasoning layer for an LLM-side failure, which is what
+    makes the "decision still ships" contract enforceable with one
+    `except` clause.
     """
 
 
@@ -207,7 +214,9 @@ class OpenAIReasoner:
                 "OPENAI_API_KEY missing. Set the env var or pass api_key="
                 "to OpenAIReasoner()."
             )
-        self._client = None  # lazy
+        # Lazy-constructed OpenAI client. Typed Any (not inferred None) so
+        # the SDK class never needs importing at module scope.
+        self._client: Any = None
 
     def _ensure_client(self) -> Any:
         if self._client is None:
@@ -263,14 +272,28 @@ class OpenAIReasoner:
                 f"LLM returned invalid output twice. second error: {second_error}"
             ) from second_error
 
+    #: Per-request timeout. Without it the SDK default (~10 minutes) leaves
+    #: the UI hanging behind a spinner on a stalled connection.
+    _REQUEST_TIMEOUT_SECONDS: float = 30.0
+
     def _call_openai(self, messages: list[dict[str, str]]) -> str:
+        """One API round-trip. Transport failures (network, rate limit,
+        timeout) are wrapped into `LLMReasoningFailed` so the orchestrator's
+        single catch keeps the "decision still ships" contract — a flaky
+        network must never crash an evaluation."""
         client = self._ensure_client()
-        resp = client.chat.completions.create(
-            model=self._model,
-            temperature=self._temperature,
-            response_format={"type": "json_object"},
-            messages=messages,
-        )
+        from openai import OpenAIError  # noqa: WPS433 — lazy, like the client
+
+        try:
+            resp = client.chat.completions.create(
+                model=self._model,
+                temperature=self._temperature,
+                response_format={"type": "json_object"},
+                messages=messages,
+                timeout=self._REQUEST_TIMEOUT_SECONDS,
+            )
+        except OpenAIError as e:
+            raise LLMReasoningFailed(f"OpenAI API call failed: {e}") from e
         return resp.choices[0].message.content or ""
 
 

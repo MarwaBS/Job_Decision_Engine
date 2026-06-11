@@ -26,7 +26,6 @@ import pytest
 from src.db import InMemoryStore
 from src.schemas import CandidateProfile, Seniority
 
-
 # ── Module imports cleanly ───────────────────────────────────────────────────
 
 
@@ -49,24 +48,28 @@ class TestDetectMode:
 
     def test_no_env_is_demo(self):
         from streamlit_app.app import detect_mode
+
         m = detect_mode()
         assert m.name == "demo"
         assert m.banner_kind == "warning"
 
     def test_openai_only(self, monkeypatch):
         from streamlit_app.app import detect_mode
+
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
         m = detect_mode()
         assert m.name == "openai_only"
 
     def test_mongo_only(self, monkeypatch):
         from streamlit_app.app import detect_mode
+
         monkeypatch.setenv("MONGODB_URI", "mongodb://test")
         m = detect_mode()
         assert m.name == "mongo_only"
 
     def test_both_is_production(self, monkeypatch):
         from streamlit_app.app import detect_mode
+
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
         monkeypatch.setenv("MONGODB_URI", "mongodb://test")
         m = detect_mode()
@@ -75,6 +78,7 @@ class TestDetectMode:
 
     def test_mode_fields_are_user_visible_strings(self):
         from streamlit_app.app import detect_mode
+
         m = detect_mode()
         # Every visible field must be non-empty and human-readable.
         for field in (m.label, m.store_kind, m.reasoner_kind, m.embedding_kind):
@@ -88,6 +92,7 @@ class TestDetectMode:
 class TestDemoProfile:
     def test_demo_profile_is_valid_candidate_profile(self):
         from streamlit_app.app import DEMO_PROFILE
+
         assert isinstance(DEMO_PROFILE, CandidateProfile)
         assert DEMO_PROFILE.active is True
         # A sane baseline — the demo must have some skills or the UI
@@ -101,11 +106,16 @@ class TestDemoProfile:
 class TestResolveProfile:
     def test_empty_store_returns_demo(self):
         from streamlit_app.app import DEMO_PROFILE, resolve_profile
-        profile = resolve_profile(InMemoryStore())
+
+        profile, degraded = resolve_profile(InMemoryStore())
         assert profile is DEMO_PROFILE
+        # A clean "no active profile" lookup is NOT a degradation — no
+        # warning banner should fire for the ordinary demo path.
+        assert degraded is False
 
     def test_mongo_resident_profile_wins(self):
         from streamlit_app.app import DEMO_PROFILE, resolve_profile
+
         store = InMemoryStore()
         real = CandidateProfile(
             profile_version="real-v1.0",
@@ -116,9 +126,24 @@ class TestResolveProfile:
             active=True,
         )
         store.upsert_profile(real)
-        got = resolve_profile(store)
+        got, degraded = resolve_profile(store)
         assert got.name == "Real Candidate"
         assert got is not DEMO_PROFILE
+        assert degraded is False
+
+    def test_raising_store_falls_back_to_demo_and_flags_degraded(self):
+        """A store that RAISES (Mongo outage mid-session) must surface
+        `degraded=True` so the UI renders a visible warning instead of
+        silently scoring against the demo profile."""
+        from streamlit_app.app import DEMO_PROFILE, resolve_profile
+
+        class _ExplodingStore(InMemoryStore):
+            def get_active_profile(self):
+                raise ConnectionError("mongo unreachable")
+
+        profile, degraded = resolve_profile(_ExplodingStore())
+        assert profile is DEMO_PROFILE
+        assert degraded is True
 
 
 # ── No-score-recomputation invariant (UI is a dumb shell) ────────────────────
@@ -129,9 +154,9 @@ class TestUIDoesNotRecomputeScores:
     or introduce logic branches that diverge from tests."""
 
     def _app_source(self) -> str:
-        return (
-            Path(__file__).parent.parent / "streamlit_app" / "app.py"
-        ).read_text(encoding="utf-8")
+        return (Path(__file__).parent.parent / "streamlit_app" / "app.py").read_text(
+            encoding="utf-8"
+        )
 
     def test_app_does_not_import_scorer_directly(self):
         """The UI must go through the orchestrator, not call score() itself.
@@ -210,9 +235,7 @@ class TestReadmeContract:
     5 content sections."""
 
     def _readme(self) -> str:
-        return (
-            Path(__file__).parent.parent / "README.md"
-        ).read_text(encoding="utf-8")
+        return (Path(__file__).parent.parent / "README.md").read_text(encoding="utf-8")
 
     def test_readme_has_hf_frontmatter(self):
         readme = self._readme()
@@ -220,15 +243,18 @@ class TestReadmeContract:
         assert "sdk: docker" in readme
         assert "app_port: 7860" in readme
 
-    @pytest.mark.parametrize("required_heading", [
-        "## 1. The problem",
-        "## 2. How I use it",
-        "## 3. System design",
-        "## 4. The decision formula",
-        "## 5. LLM boundary",
-        "## 6. Evaluation and honest scope",
-        "## 7. Proof of correctness",
-    ])
+    @pytest.mark.parametrize(
+        "required_heading",
+        [
+            "## 1. The problem",
+            "## 2. How I use it",
+            "## 3. System design",
+            "## 4. The decision formula",
+            "## 5. LLM boundary",
+            "## 6. Evaluation and honest scope",
+            "## 7. Proof of correctness",
+        ],
+    )
     def test_readme_has_required_section(self, required_heading):
         assert required_heading in self._readme(), (
             f"README missing required section: {required_heading!r}"

@@ -13,17 +13,16 @@ Design rules enforced here:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-
 # ── Enums ────────────────────────────────────────────────────────────────────
 
 
-class Verdict(str, Enum):
+class Verdict(StrEnum):
     """Final decision output.
 
     Two orthogonal axes:
@@ -44,7 +43,7 @@ class Verdict(str, Enum):
     PARSE_FAILURE = "PARSE_FAILURE"
 
 
-class FailureMode(str, Enum):
+class FailureMode(StrEnum):
     """Coded labels for structural issues flagged during scoring.
 
     None (the absence of this label on a decision) means no structural issue
@@ -58,7 +57,7 @@ class FailureMode(str, Enum):
     LLM_SCHEMA_VIOLATION = "llm_schema_violation"
 
 
-class Seniority(str, Enum):
+class Seniority(StrEnum):
     JUNIOR = "junior"
     MID = "mid"
     SENIOR = "senior"
@@ -165,6 +164,20 @@ class DecisionSensitivity(BaseModel):
     if_experience_removed_score: float = Field(ge=0.0, le=100.0)
 
 
+#: The vocabulary of `DecisionTrace.dominant_signal`. A named alias (not an
+#: inline Literal) so the scorer can type its helpers against the same
+#: vocabulary instead of suppressing mypy at the construction site.
+DominantSignal = Literal[
+    "skills_match",
+    "experience_match",
+    "semantic_similarity",
+    "llm_confidence",
+    "role_level_fit",
+    "dealbreaker",
+    "low_parse_confidence",
+]
+
+
 class DecisionTrace(BaseModel):
     """Explains WHY a given score produced a given verdict.
 
@@ -174,15 +187,7 @@ class DecisionTrace(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    dominant_signal: Literal[
-        "skills_match",
-        "experience_match",
-        "semantic_similarity",
-        "llm_confidence",
-        "role_level_fit",
-        "dealbreaker",
-        "low_parse_confidence",
-    ]
+    dominant_signal: DominantSignal
     failure_mode_detected: FailureMode | None
     decision_sensitivity: DecisionSensitivity
     nearest_threshold_distance: float = Field(ge=0.0, le=100.0)
@@ -224,8 +229,8 @@ class DecisionResult(BaseModel):
 #: keys it doesn't recognize, so an unvalidated typo (e.g. "requires_10yr_exp")
 #: would disable a dealbreaker with no signal. CandidateProfile rejects unknown
 #: keys at construction instead. Semantics live in
-#: ``src.engine.orchestrator._check_dealbreakers``; ``no_pytorch`` is reserved
-#: v2 vocabulary and is currently a documented no-op.
+#: ``src.engine.orchestrator._check_dealbreakers`` — every key listed here is
+#: enforced there; the vocabulary contains no no-op entries.
 KNOWN_DEALBREAKERS: frozenset[str] = frozenset(
     {"requires_10_yr_exp", "on_site_only", "no_pytorch"}
 )
@@ -241,7 +246,7 @@ class CandidateProfile(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     profile_version: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     active: bool = True
     name: str
     summary: str
@@ -261,7 +266,9 @@ class CandidateProfile(BaseModel):
     def _validate_dealbreakers(cls, value: list[str]) -> list[str]:
         """Reject unrecognized dealbreaker keys so a typo fails fast here
         rather than silently disabling a hard filter at scoring time."""
-        unknown = sorted({d for d in value if d.strip().lower() not in KNOWN_DEALBREAKERS})
+        unknown = sorted(
+            {d for d in value if d.strip().lower() not in KNOWN_DEALBREAKERS}
+        )
         if unknown:
             raise ValueError(
                 f"unknown dealbreaker key(s): {unknown}; "
@@ -281,7 +288,10 @@ class ParsedJob(BaseModel):
     title: str
     company: str | None = None
     location: str | None = None
-    remote: bool = False
+    # Tri-state: True = remote/hybrid mentioned, False = on-site explicitly
+    # mentioned, None = the JD is silent on workplace. The `on_site_only`
+    # dealbreaker fires only on an explicit False — never on None.
+    remote: bool | None = None
     seniority: Seniority | None = None
     years_required: float | None = None
     required_skills: list[str] = Field(default_factory=list)
@@ -295,7 +305,7 @@ class Job(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     content_hash: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     source: Literal["paste", "url", "upload"]
     source_url: str | None = None
     raw_text: str
@@ -312,7 +322,13 @@ class OutcomeStage(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     stage: Literal[
-        "SUBMITTED", "CALLBACK", "INTERVIEW", "OFFER", "REJECTED", "GHOSTED", "WITHDRAWN"
+        "SUBMITTED",
+        "CALLBACK",
+        "INTERVIEW",
+        "OFFER",
+        "REJECTED",
+        "GHOSTED",
+        "WITHDRAWN",
     ]
     at: datetime
 
@@ -371,7 +387,7 @@ class FeedbackLog(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     decision_id: str
     feedback_type: Literal[
         "score_too_low", "score_too_high", "verdict_wrong", "reasoning_off"

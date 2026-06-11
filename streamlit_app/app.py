@@ -136,6 +136,13 @@ def detect_mode() -> RuntimeMode:
 
 @st.cache_resource
 def _build_store(mode_name: str) -> Store:
+    """Build the persistence layer for the detected mode.
+
+    If Mongo is configured but unreachable, fall back to `InMemoryStore` —
+    but NEVER silently: `main()` compares the store actually built against
+    the mode banner and renders a visible degradation warning, so the UI
+    never claims "persisted to Atlas" while writing to memory.
+    """
     if mode_name in ("production", "mongo_only"):
         try:
             return MongoStore()
@@ -146,6 +153,15 @@ def _build_store(mode_name: str) -> Store:
 
 @st.cache_resource
 def _build_reasoner(mode_name: str) -> LLMReasoner:
+    """Build the LLM reasoner for the detected mode.
+
+    `OpenAIReasoner()` raises only when OPENAI_API_KEY is missing — which
+    contradicts `detect_mode` having just seen it; the only realistic cause
+    is the key being unset between boot and cache rebuild. The fallback is
+    `FailingReasoner`, whose effect (reasoning=None, llm_confidence=0.0) is
+    exactly the documented LLM-absent path and is visibly surfaced by the
+    reasoning panel — not a hidden behaviour change.
+    """
     if mode_name in ("production", "openai_only"):
         try:
             return OpenAIReasoner()
@@ -211,7 +227,15 @@ DEMO_PROFILE: CandidateProfile = CandidateProfile(
     years_experience=6.0,
     seniority=Seniority.SENIOR,
     skills_tech=["python", "sql"],
-    skills_tools=["pytorch", "xgboost", "lightgbm", "aws", "docker", "mlops", "fastapi"],
+    skills_tools=[
+        "pytorch",
+        "xgboost",
+        "lightgbm",
+        "aws",
+        "docker",
+        "mlops",
+        "fastapi",
+    ],
     skills_domain=["mlops", "llm", "rag", "data engineering"],
     target_roles=["Senior ML Engineer", "Staff ML Engineer", "AI Engineer"],
     target_locations=["Remote", "EU", "US"],
@@ -229,25 +253,50 @@ for a presentation-layer artefact.
 """
 
 
-def resolve_profile(store: Store) -> CandidateProfile:
-    """Prefer a Mongo-resident active profile; fall back to the demo."""
+def resolve_profile(store: Store) -> tuple[CandidateProfile, bool]:
+    """Prefer a store-resident active profile; fall back to the demo.
+
+    Returns `(profile, degraded)` — `degraded=True` means the store lookup
+    RAISED (as opposed to cleanly finding no active profile) and the demo
+    profile was substituted. The caller renders a visible warning in that
+    case; swallowing the failure silently would score the JD against a
+    different profile than the banner claims (the app.py module rule:
+    "no fallbacks hidden later").
+    """
     try:
         from_store = store.get_active_profile()
     except Exception:
-        from_store = None
-    return from_store or DEMO_PROFILE
+        return DEMO_PROFILE, True
+    return from_store or DEMO_PROFILE, False
 
 
 # ── UI renderers (pure — they read a DecisionResult and write Streamlit) ────
 
 
-def render_header(mode: RuntimeMode) -> None:
+def render_header(mode: RuntimeMode, store: Store) -> None:
     # set_page_config lives at module top (first-command rule).
     st.title("Job Decision Engine")
     st.caption(
         "Deterministic scoring + bounded-signal LLM reasoning. "
         f"engine {ENGINE_VERSION} · thresholds {THRESHOLDS.version}"
     )
+
+    # The banner reports the store that was ACTUALLY built, not the one the
+    # env vars implied. If Mongo was configured but the connection failed at
+    # boot, the fallback to InMemoryStore is surfaced loudly here — the UI
+    # must never claim persistence it doesn't have.
+    mongo_expected = mode.name in ("production", "mongo_only")
+    store_is_memory = isinstance(store, InMemoryStore)
+    if mongo_expected and store_is_memory:
+        st.warning(
+            "**Persistence degraded:** MONGODB_URI is set but the MongoDB "
+            "connection could not be established at boot. Decisions for "
+            "this session are stored **in memory only** and will be lost "
+            "on restart. Scoring is unaffected."
+        )
+        store_desc = "InMemoryStore (DEGRADED — Mongo configured but unreachable)"
+    else:
+        store_desc = mode.store_kind
 
     banner = {
         "success": st.success,
@@ -256,7 +305,7 @@ def render_header(mode: RuntimeMode) -> None:
     }[mode.banner_kind]
     banner(
         f"**Mode: {mode.label}**\n\n"
-        f"- Store: {mode.store_kind}\n"
+        f"- Store: {store_desc}\n"
         f"- Reasoner: {mode.reasoner_kind}\n"
         f"- Embeddings: {mode.embedding_kind}\n\n"
         f"**Scoring is identical across all modes.** Only the persistence "
@@ -304,8 +353,12 @@ def render_decision(decision: DecisionResult) -> None:
     st.table(
         {
             "Signal": [
-                "skills_match", "experience_match", "semantic_similarity",
-                "llm_confidence", "role_level_fit", "parse_confidence",
+                "skills_match",
+                "experience_match",
+                "semantic_similarity",
+                "llm_confidence",
+                "role_level_fit",
+                "parse_confidence",
             ],
             "Value": [
                 f"{signals.skills_match:.3f}",
@@ -383,8 +436,8 @@ def render_footer() -> None:
     st.caption(
         "This UI is a thin rendering layer. The scorer, signals, decision "
         "trace, LLM boundary, and append-only persistence are covered by "
-        "267 hermetic unit tests. See the public README for the system "
-        "contract."
+        "the hermetic unit-test suite enforced in CI. See the public "
+        "README for the system contract."
     )
 
 
@@ -393,12 +446,19 @@ def render_footer() -> None:
 
 def main() -> None:
     mode = detect_mode()
-    render_header(mode)
 
     store = _build_store(mode.name)
+    render_header(mode, store)
+
     reasoner = _build_reasoner(mode.name)
     embedding_provider = _build_embedding_provider()
-    profile = resolve_profile(store)
+    profile, profile_degraded = resolve_profile(store)
+    if profile_degraded:
+        st.warning(
+            "**Profile lookup failed** — the store raised while loading the "
+            "active profile. Scoring against the bundled demo profile "
+            f"(`{profile.profile_version}`) instead."
+        )
 
     with st.sidebar:
         st.markdown("### Candidate profile")
@@ -419,17 +479,34 @@ def main() -> None:
         height=280,
         label_visibility="collapsed",
     )
-    evaluate_clicked = st.button("Evaluate", type="primary", disabled=not raw_text.strip())
+    evaluate_clicked = st.button(
+        "Evaluate", type="primary", disabled=not raw_text.strip()
+    )
 
     if evaluate_clicked:
-        with st.spinner("Running decision engine…"):
-            decision = evaluate_job(
-                raw_text, profile,
-                store=store,
-                reasoner=reasoner,
-                embedding_provider=embedding_provider,
+        # The LLM layer already degrades gracefully inside evaluate_job
+        # (LLMReasoningFailed → reasoning=None). Anything that still
+        # escapes — e.g. the persistence layer failing mid-evaluation —
+        # is rendered as a clean, actionable error instead of a raw
+        # stack trace taking over the page.
+        try:
+            with st.spinner("Running decision engine…"):
+                decision = evaluate_job(
+                    raw_text,
+                    profile,
+                    store=store,
+                    reasoner=reasoner,
+                    embedding_provider=embedding_provider,
+                )
+        except Exception as e:  # noqa: BLE001 — presentation-layer boundary
+            st.error(
+                "Evaluation failed before a decision could be persisted. "
+                "Nothing was saved. The most common cause is the store "
+                "becoming unreachable mid-session."
             )
-        render_decision(decision)
+            st.exception(e)
+        else:
+            render_decision(decision)
 
     render_footer()
 

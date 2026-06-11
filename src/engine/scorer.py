@@ -21,6 +21,7 @@ from src.schemas import (
     DecisionResult,
     DecisionSensitivity,
     DecisionTrace,
+    DominantSignal,
     FailureMode,
     Signals,
     Thresholds,
@@ -51,17 +52,10 @@ def score(
     """
     # ── Hard filters (applied BEFORE the weighted sum) ───────────────────────
     # Architecture §6: "Hard filters" subsection.
-
-    if signals.dealbreaker_hit:
-        return _short_circuit(
-            signals=signals,
-            weights=weights,
-            thresholds=thresholds,
-            apply_score=0.0,
-            verdict=Verdict.SKIP,
-            dominant_signal="dealbreaker",
-            failure_mode=FailureMode.DEALBREAKER_HIT,
-        )
+    #
+    # Order matters: input quality is checked FIRST. A dealbreaker inferred
+    # from a JD we could not reliably parse is itself unreliable — firing it
+    # would convert garbage input into a confident SKIP. PARSE_FAILURE wins.
 
     if signals.parse_confidence < MIN_PARSE_CONFIDENCE:
         # Input-quality verdict, NOT a fit-signal verdict (BUG-004).
@@ -76,6 +70,17 @@ def score(
             verdict=Verdict.PARSE_FAILURE,
             dominant_signal="low_parse_confidence",
             failure_mode=FailureMode.LOW_PARSE_CONFIDENCE,
+        )
+
+    if signals.dealbreaker_hit:
+        return _short_circuit(
+            signals=signals,
+            weights=weights,
+            thresholds=thresholds,
+            apply_score=0.0,
+            verdict=Verdict.SKIP,
+            dominant_signal="dealbreaker",
+            failure_mode=FailureMode.DEALBREAKER_HIT,
         )
 
     # ── Weighted sum (architecture §6) ───────────────────────────────────────
@@ -127,7 +132,7 @@ def _weighted_contributions(signals: Signals, weights: Weights) -> dict[str, flo
     }
 
 
-def _dominant_signal(weighted: dict[str, float]) -> str:
+def _dominant_signal(weighted: dict[str, float]) -> DominantSignal:
     """Return the signal name with the highest weighted contribution.
 
     Ties are broken by the signal's order of definition in the architecture
@@ -135,7 +140,7 @@ def _dominant_signal(weighted: dict[str, float]) -> str:
     matters: determinism requires tie-breaking rules that are specified, not
     inherited from Python's dict ordering.
     """
-    order = [
+    order: list[DominantSignal] = [
         "skills_match",
         "experience_match",
         "semantic_similarity",
@@ -215,7 +220,7 @@ def _short_circuit(
     thresholds: Thresholds,
     apply_score: float | None,
     verdict: Verdict,
-    dominant_signal: str,
+    dominant_signal: DominantSignal,
     failure_mode: FailureMode,
 ) -> DecisionResult:
     """Build a DecisionResult for hard-filter paths (dealbreaker / parse failure).
@@ -237,7 +242,7 @@ def _short_circuit(
         else 0.0
     )
     trace = DecisionTrace(
-        dominant_signal=dominant_signal,  # type: ignore[arg-type]
+        dominant_signal=dominant_signal,
         failure_mode_detected=failure_mode,
         decision_sensitivity=DecisionSensitivity(
             if_llm_removed_score=0.0,

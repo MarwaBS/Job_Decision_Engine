@@ -13,8 +13,7 @@ that's a portfolio conversation, not a test).
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
+from datetime import UTC, datetime
 
 from scripts.evaluate import MIN_OUTCOMES_FOR_EVALUATION, evaluate
 from src.db import InMemoryStore
@@ -32,14 +31,19 @@ from src.schemas import (
 
 def _decision(verdict: Verdict = Verdict.APPLY) -> DecisionResult:
     sig = Signals(
-        skills_match=0.7, experience_match=1.0,
-        semantic_similarity=0.6, llm_confidence=0.6, role_level_fit=1.0,
+        skills_match=0.7,
+        experience_match=1.0,
+        semantic_similarity=0.6,
+        llm_confidence=0.6,
+        role_level_fit=1.0,
     )
     return DecisionResult(
         apply_score=70.0,
         verdict=verdict,
         signals=sig,
-        weights=Weights(skills=0.30, experience=0.20, semantic=0.15, llm=0.25, role=0.10),
+        weights=Weights(
+            skills=0.30, experience=0.20, semantic=0.15, llm=0.25, role=0.10
+        ),
         thresholds_version="v1.0",
         decision_trace=DecisionTrace(
             dominant_signal="skills_match",
@@ -57,10 +61,12 @@ def _decision(verdict: Verdict = Verdict.APPLY) -> DecisionResult:
 
 
 def _outcome_with_stages(
-    decision_id: str, stages: list[str], final: str | None = None,
+    decision_id: str,
+    stages: list[str],
+    final: str | None = None,
     ttr_days: int | None = None,
 ) -> Outcome:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return Outcome(
         decision_id=decision_id,
         submitted_at=now,
@@ -123,7 +129,9 @@ class TestMetricShape:
                 stages.extend(["CALLBACK", "INTERVIEW"])
             else:
                 final = "REJECTED"
-            store.insert_outcome(_outcome_with_stages(did, stages, final=final, ttr_days=3))
+            store.insert_outcome(
+                _outcome_with_stages(did, stages, final=final, ttr_days=3)
+            )
         return store
 
     def test_exactly_50_outcomes_triggers_metric_path(self):
@@ -143,6 +151,51 @@ class TestMetricShape:
         store = self._seed_n_outcomes(50, interview_rate=0.3)
         result = evaluate(store)
         assert 0.0 <= result.metrics["precision_apply"] <= 1.0
+
+    def test_precision_priority_computed(self):
+        """PRIORITY decisions joined to their outcomes produce the metric."""
+        store = InMemoryStore()
+        for i in range(50):
+            did = store.insert_decision(_decision(verdict=Verdict.PRIORITY))
+            stages = ["SUBMITTED"] + (["CALLBACK"] if i < 25 else [])
+            store.insert_outcome(_outcome_with_stages(did, stages))
+        result = evaluate(store)
+        assert result.metrics["precision_priority"] == 0.5
+
+    def test_precision_priority_survives_objectid_keys(self):
+        """Regression guard for the production-path join bug.
+
+        On Mongo, `list_decisions` returns documents whose `_id` is a raw
+        ObjectId, while outcomes store `decision_id` as the STRING form
+        (`str(inserted_id)` from db.py). The join must stringify the index
+        key — keying by the raw `_id` made `precision_priority` silently
+        impossible to compute in production while in-memory tests (string
+        ids) stayed green.
+        """
+
+        class _ObjectIdLike:
+            """Mimics bson.ObjectId: not a str, equal only to itself."""
+
+            def __init__(self, value: str) -> None:
+                self._value = value
+
+            def __str__(self) -> str:
+                return self._value
+
+            def __repr__(self) -> str:
+                return f"ObjectIdLike({self._value!r})"
+
+        class _MongoShapedStore(InMemoryStore):
+            def list_decisions(self, limit: int = 100) -> list[dict]:
+                docs = super().list_decisions(limit=limit)
+                return [{**d, "_id": _ObjectIdLike(str(d["_id"]))} for d in docs]
+
+        store = _MongoShapedStore()
+        for _ in range(50):
+            did = store.insert_decision(_decision(verdict=Verdict.PRIORITY))
+            store.insert_outcome(_outcome_with_stages(did, ["SUBMITTED", "CALLBACK"]))
+        result = evaluate(store)
+        assert result.metrics.get("precision_priority") == 1.0
 
 
 # ── EvaluationResult.as_dict shape ───────────────────────────────────────────

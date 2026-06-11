@@ -10,7 +10,6 @@ from pydantic import ValidationError
 from scripts.seed_profile import load_profile_from_yaml, seed_profile
 from src.db import InMemoryStore
 
-
 _VALID_YAML = """
 profile_version: "v1.0"
 active: true

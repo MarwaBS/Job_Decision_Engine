@@ -125,8 +125,7 @@ class TestLowStructureInputs:
         """A paragraph with no skills and no structure should score below the
         MIN_PARSE_CONFIDENCE threshold (0.5)."""
         j = parse_job(
-            "We are a startup looking for someone great to help us grow."
-            " No specifics."
+            "We are a startup looking for someone great to help us grow. No specifics."
         )
         assert j.parse_confidence < 0.5
 
@@ -136,10 +135,10 @@ class TestLowStructureInputs:
 
         Expected buckets that fire on "We use Python and PyTorch":
           - ≥1 skill matched: 0.20
-        Nothing else. Total: 0.20. Below MIN_PARSE_CONFIDENCE (0.5) → routes
-        to REVIEW at scoring time, which is the correct behaviour: the
-        user should confirm before an application decision is made on this
-        little evidence.
+        Nothing else. Total: 0.20. Below MIN_PARSE_CONFIDENCE (0.5) →
+        short-circuits to PARSE_FAILURE at scoring time, which is the
+        correct behaviour: the user should read the JD themselves before
+        any application decision is made on this little evidence.
         """
         jd = "Machine Learning Engineer\nWe use Python and PyTorch."
         j = parse_job(jd)
@@ -165,15 +164,18 @@ class TestLowStructureInputs:
 
 
 class TestSeniority:
-    @pytest.mark.parametrize("title,expected", [
-        ("Staff ML Engineer", Seniority.STAFF),
-        ("Principal Data Scientist", Seniority.PRINCIPAL),
-        ("Senior Software Engineer", Seniority.SENIOR),
-        ("Sr. Backend Dev", Seniority.SENIOR),
-        ("Junior Developer", Seniority.JUNIOR),
-        ("Mid-level Engineer", Seniority.MID),
-        ("Senior Staff Software Engineer", Seniority.STAFF),  # staff wins
-    ])
+    @pytest.mark.parametrize(
+        "title,expected",
+        [
+            ("Staff ML Engineer", Seniority.STAFF),
+            ("Principal Data Scientist", Seniority.PRINCIPAL),
+            ("Senior Software Engineer", Seniority.SENIOR),
+            ("Sr. Backend Dev", Seniority.SENIOR),
+            ("Junior Developer", Seniority.JUNIOR),
+            ("Mid-level Engineer", Seniority.MID),
+            ("Senior Staff Software Engineer", Seniority.STAFF),  # staff wins
+        ],
+    )
     def test_seniority_keyword_match(self, title, expected):
         assert parse_job(title).parsed.seniority == expected
 
@@ -185,13 +187,16 @@ class TestSeniority:
 
 
 class TestYearsRequired:
-    @pytest.mark.parametrize("text,expected", [
-        ("5+ years of experience", 5.0),
-        ("3 years of experience required", 3.0),
-        ("10+ years", 10.0),
-        ("5-7 years", 5.0),
-        ("5 to 7 years", 5.0),
-    ])
+    @pytest.mark.parametrize(
+        "text,expected",
+        [
+            ("5+ years of experience", 5.0),
+            ("3 years of experience required", 3.0),
+            ("10+ years", 10.0),
+            ("5-7 years", 5.0),
+            ("5 to 7 years", 5.0),
+        ],
+    )
     def test_years_patterns(self, text, expected):
         assert parse_job(text).parsed.years_required == expected
 
@@ -212,8 +217,16 @@ class TestWorkplace:
     def test_on_site_only_detects_non_remote(self):
         assert parse_job("On-site role in NYC.").parsed.remote is False
 
-    def test_no_cue_defaults_to_false(self):
-        assert parse_job("Software engineer position.").parsed.remote is False
+    def test_no_cue_is_none_not_false(self):
+        """A JD that never mentions workplace is UNKNOWN (None), not on-site.
+
+        Regression guard: `remote` defaulting to False made the
+        `on_site_only` dealbreaker hard-SKIP every JD that simply didn't
+        mention workplace — absence of evidence treated as evidence of
+        on-site, contradicting the "don't penalise missing data" principle
+        the experience and role-level signals follow.
+        """
+        assert parse_job("Software engineer position.").parsed.remote is None
 
 
 # ── Salary parsing edge cases ────────────────────────────────────────────────
@@ -221,10 +234,16 @@ class TestWorkplace:
 
 class TestSalary:
     def test_salary_range_with_k(self):
-        assert parse_job("Salary: $150k-$220k").parsed.salary_range_usd == (150000, 220000)
+        assert parse_job("Salary: $150k-$220k").parsed.salary_range_usd == (
+            150000,
+            220000,
+        )
 
     def test_salary_range_with_dash(self):
-        assert parse_job("Salary $100 to $150").parsed.salary_range_usd == (100000, 150000)
+        assert parse_job("Salary $100 to $150").parsed.salary_range_usd == (
+            100000,
+            150000,
+        )
 
     def test_no_salary_returns_none(self):
         assert parse_job("Great role.").parsed.salary_range_usd is None
@@ -235,20 +254,41 @@ class TestSalary:
         assert j.parsed.salary_range_usd is None
         assert "salary_range_inverted" in j.parse_warnings
 
+    def test_salary_comma_thousands_format(self):
+        """ "$100,000 - $150,000" is the most common US-JD salary shape —
+        it must parse, not silently miss."""
+        assert parse_job("Salary: $100,000 - $150,000").parsed.salary_range_usd == (
+            100000,
+            150000,
+        )
+
+    def test_unparsed_dollar_amount_warns_instead_of_silent_miss(self):
+        """A JD that clearly talks money in a shape we don't support must
+        leave a trace in parse_warnings, never a silent None."""
+        j = parse_job("Compensation: $1,250 per week")
+        assert j.parsed.salary_range_usd is None
+        assert "salary_not_parsed" in j.parse_warnings
+
 
 # ── Parser purity ────────────────────────────────────────────────────────────
 
 
 class TestPurity:
     def test_parser_does_not_import_network_modules(self):
-        """Architecture §3: parser is pure. The url_scraper is the I/O
-        module, not the parser."""
+        """Architecture §3: parser is pure — text in, structure out.
+        Any future ingestion I/O (scraping, uploads) belongs in its own
+        module, never here."""
         from pathlib import Path
 
         src = (
             Path(__file__).parent.parent / "src" / "ingestion" / "parser.py"
         ).read_text(encoding="utf-8")
-        forbidden = ["import requests", "from requests", "import httpx", "urllib.request"]
+        forbidden = [
+            "import requests",
+            "from requests",
+            "import httpx",
+            "urllib.request",
+        ]
         for needle in forbidden:
             assert needle not in src, f"parser.py imports network module {needle!r}"
 

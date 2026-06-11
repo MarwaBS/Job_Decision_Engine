@@ -133,7 +133,8 @@ def evaluate_job(
     skills_s = compute_skills_match(job.parsed, profile)
     exp_s = compute_experience_match(job.parsed, profile)
     sem_s = compute_semantic_similarity(
-        job.parsed, profile,
+        job.parsed,
+        profile,
         provider=embedding_provider,
     )
     role_s = compute_role_level_fit(job.parsed, profile)
@@ -191,9 +192,15 @@ def evaluate_job(
         )
     # else: decision.reasoning stays None (the schemas default)
 
-    # Sanity: engine_version sanity check so a future upgrade doesn't
-    # silently persist stale decisions.
-    assert decision.engine_version == ENGINE_VERSION
+    # Sanity: engine_version check so a future upgrade doesn't silently
+    # persist stale decisions. An explicit raise (not `assert`) so the
+    # invariant survives `python -O`.
+    if decision.engine_version != ENGINE_VERSION:
+        raise RuntimeError(
+            f"engine_version mismatch: scorer produced "
+            f"{decision.engine_version!r}, orchestrator expects "
+            f"{ENGINE_VERSION!r} — refusing to persist a stale decision"
+        )
 
     # ── Step 10: persist ───────────────────────────────────────────────────
     persist_decision(store, job, decision)
@@ -204,20 +211,24 @@ def evaluate_job(
 # ── Dealbreaker detection ────────────────────────────────────────────────────
 
 
-def _check_dealbreakers(
-    job: ParsedJob, profile: CandidateProfile
-) -> bool:
+def _check_dealbreakers(job: ParsedJob, profile: CandidateProfile) -> bool:
     """Return True if the JD violates any of the profile's dealbreakers.
 
-    v1 dealbreaker vocabulary (extensible):
+    Dealbreaker vocabulary (mirrored by `schemas.KNOWN_DEALBREAKERS`):
         "requires_10_yr_exp"  — fires when job.years_required >= 10
-        "on_site_only"        — fires when job.remote is False
-        "no_pytorch"          — placeholder; v1 doesn't match against the
-                                 profile's own stack (that would flip the
-                                 semantics). Kept in vocabulary for v2.
+        "on_site_only"        — fires when job.remote is EXPLICITLY False
+                                 (the JD mentions on-site/in-office). A JD
+                                 that is silent on workplace (remote=None)
+                                 does NOT fire — absence of evidence is not
+                                 evidence of on-site, per the same "don't
+                                 penalise missing data" principle the
+                                 experience and role-level signals follow.
+        "no_pytorch"          — fires when the JD lists pytorch as a
+                                 required skill.
 
     Anything the function doesn't recognise is ignored (forward-compatible
-    with future vocabulary expansion).
+    with future vocabulary expansion; `CandidateProfile` rejects unknown
+    keys at construction, so this branch is defensive only).
     """
     for item in profile.dealbreakers:
         key = item.strip().lower()
@@ -225,7 +236,10 @@ def _check_dealbreakers(
             if job.years_required is not None and job.years_required >= 10:
                 return True
         elif key == "on_site_only":
-            if not job.remote:
+            if job.remote is False:
+                return True
+        elif key == "no_pytorch":
+            if "pytorch" in job.required_skills:
                 return True
     return False
 

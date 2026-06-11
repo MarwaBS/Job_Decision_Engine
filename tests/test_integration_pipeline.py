@@ -34,7 +34,6 @@ from src.signals.experience import compute_experience_match
 from src.signals.semantic import MockEmbeddingProvider, compute_semantic_similarity
 from src.signals.skills import compute_skills_match
 
-
 # ── Shared fixtures ──────────────────────────────────────────────────────────
 
 
@@ -129,9 +128,10 @@ class TestStrongMatchEndToEnd:
     def test_pipeline_produces_apply_or_priority_verdict(self):
         """A strong-match JD + matching profile must not SKIP."""
         signals = _build_signals(
-            STRONG_JD, _alex_rivera_profile(),
+            STRONG_JD,
+            _alex_rivera_profile(),
             llm_confidence=0.85,  # simulated Step-4 LLM output
-            role_level_fit=1.0,   # senior role, senior candidate
+            role_level_fit=1.0,  # senior role, senior candidate
         )
         result = score(signals)
         assert result.verdict in {Verdict.APPLY, Verdict.PRIORITY}, (
@@ -141,8 +141,10 @@ class TestStrongMatchEndToEnd:
 
     def test_skills_signal_is_high_for_strong_match(self):
         signals = _build_signals(
-            STRONG_JD, _alex_rivera_profile(),
-            llm_confidence=0.5, role_level_fit=1.0,
+            STRONG_JD,
+            _alex_rivera_profile(),
+            llm_confidence=0.5,
+            role_level_fit=1.0,
         )
         # Profile has python, pytorch, aws, mlops, docker — JD required has
         # python, pytorch, aws, mlops, kubernetes, docker → 5/6 match.
@@ -154,8 +156,10 @@ class TestStrongMatchEndToEnd:
         """Strong structured JD must not trigger the low-parse-confidence
         REVIEW filter."""
         signals = _build_signals(
-            STRONG_JD, _alex_rivera_profile(),
-            llm_confidence=0.5, role_level_fit=1.0,
+            STRONG_JD,
+            _alex_rivera_profile(),
+            llm_confidence=0.5,
+            role_level_fit=1.0,
         )
         assert signals.parse_confidence >= 0.5
 
@@ -168,7 +172,8 @@ class TestWeakMatchEndToEnd:
         """A 10-year Rust JD vs a 5-year Python profile should not produce
         a strong APPLY verdict."""
         signals = _build_signals(
-            WEAK_JD_MISMATCH, _alex_rivera_profile(),
+            WEAK_JD_MISMATCH,
+            _alex_rivera_profile(),
             llm_confidence=0.2,
             role_level_fit=0.5,
         )
@@ -181,8 +186,10 @@ class TestWeakMatchEndToEnd:
     def test_experience_signal_low_when_underqualified(self):
         """5.5 years of experience vs 10 required → signal < 1.0."""
         signals = _build_signals(
-            WEAK_JD_MISMATCH, _alex_rivera_profile(),
-            llm_confidence=0.5, role_level_fit=1.0,
+            WEAK_JD_MISMATCH,
+            _alex_rivera_profile(),
+            llm_confidence=0.5,
+            role_level_fit=1.0,
         )
         assert signals.experience_match < 1.0
         assert signals.experience_match == pytest.approx(5.5 / 10.0, abs=1e-9)
@@ -195,8 +202,12 @@ class TestPipelineReproducibility:
     def test_same_input_produces_same_result(self):
         """Architecture Phase 10: consistent decisions on consistent inputs."""
         profile = _alex_rivera_profile()
-        r1 = score(_build_signals(STRONG_JD, profile, llm_confidence=0.7, role_level_fit=1.0))
-        r2 = score(_build_signals(STRONG_JD, profile, llm_confidence=0.7, role_level_fit=1.0))
+        r1 = score(
+            _build_signals(STRONG_JD, profile, llm_confidence=0.7, role_level_fit=1.0)
+        )
+        r2 = score(
+            _build_signals(STRONG_JD, profile, llm_confidence=0.7, role_level_fit=1.0)
+        )
         assert r1.apply_score == r2.apply_score
         assert r1.verdict == r2.verdict
         assert r1.decision_trace.model_dump() == r2.decision_trace.model_dump()
@@ -213,8 +224,10 @@ class TestPipelineReproducibility:
         from src.config import ENGINE_VERSION, THRESHOLDS_VERSION, WEIGHTS
 
         signals = _build_signals(
-            STRONG_JD, _alex_rivera_profile(),
-            llm_confidence=0.7, role_level_fit=1.0,
+            STRONG_JD,
+            _alex_rivera_profile(),
+            llm_confidence=0.7,
+            role_level_fit=1.0,
         )
         result = score(signals)
         assert result.weights == WEIGHTS

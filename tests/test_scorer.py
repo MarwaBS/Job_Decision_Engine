@@ -19,7 +19,6 @@ from src.config import THRESHOLDS, WEIGHTS
 from src.engine.scorer import score
 from src.schemas import FailureMode, Signals, Thresholds, Verdict, Weights
 
-
 # ── Test fixtures (fixed inputs per EXECUTION_RULES §7) ──────────────────────
 
 
@@ -98,16 +97,22 @@ class TestWeightedSum:
 
     def test_all_zeros_scores_zero(self):
         s = Signals(
-            skills_match=0.0, experience_match=0.0,
-            semantic_similarity=0.0, llm_confidence=0.0, role_level_fit=0.0,
+            skills_match=0.0,
+            experience_match=0.0,
+            semantic_similarity=0.0,
+            llm_confidence=0.0,
+            role_level_fit=0.0,
         )
         r = score(s)
         assert r.apply_score == 0.0
 
     def test_all_ones_scores_one_hundred(self):
         s = Signals(
-            skills_match=1.0, experience_match=1.0,
-            semantic_similarity=1.0, llm_confidence=1.0, role_level_fit=1.0,
+            skills_match=1.0,
+            experience_match=1.0,
+            semantic_similarity=1.0,
+            llm_confidence=1.0,
+            role_level_fit=1.0,
         )
         r = score(s)
         assert r.apply_score == pytest.approx(100.0, abs=1e-9)
@@ -139,7 +144,9 @@ class TestHardFilters:
         r = score(s)
         assert r.verdict == Verdict.PARSE_FAILURE
         assert r.apply_score is None
-        assert r.decision_trace.failure_mode_detected == FailureMode.LOW_PARSE_CONFIDENCE
+        assert (
+            r.decision_trace.failure_mode_detected == FailureMode.LOW_PARSE_CONFIDENCE
+        )
 
     def test_parse_failure_distinct_from_review(self):
         """PARSE_FAILURE must NOT collapse into REVIEW (BUG-004 regression guard).
@@ -165,13 +172,18 @@ class TestHardFilters:
         assert r.verdict != Verdict.PARSE_FAILURE
         assert r.apply_score is not None and r.apply_score > 0
 
-    def test_dealbreaker_takes_precedence_over_low_parse(self):
-        """When both hard filters would fire, dealbreaker (SKIP) wins over PARSE_FAILURE."""
+    def test_low_parse_takes_precedence_over_dealbreaker(self):
+        """When both hard filters would fire, PARSE_FAILURE wins over SKIP.
+
+        A dealbreaker inferred from a JD the parser could not reliably read
+        is itself unreliable — letting it fire would convert garbage input
+        into a confident SKIP. Input quality is checked first; the verdict
+        for unparseable input is PARSE_FAILURE with apply_score=None.
+        """
         s = _strong_signals(dealbreaker_hit=True, parse_confidence=0.1)
         r = score(s)
-        assert r.verdict == Verdict.SKIP
-        # Dealbreaker path keeps apply_score=0.0 (filtered, not unscorable).
-        assert r.apply_score == 0.0
+        assert r.verdict == Verdict.PARSE_FAILURE
+        assert r.apply_score is None
 
 
 # ── Verdict boundaries (architecture §6) ─────────────────────────────────────
@@ -185,62 +197,115 @@ class TestVerdictBoundaries:
     pin explicit signal values and assert the hand-computed score + verdict.
     """
 
-    @pytest.mark.parametrize("signals,expected_score,expected_verdict", [
-        # ── PRIORITY (score ≥ 80) ────────────────────────────────────────────
-        # all-ones = 100.0, well above priority
-        (
-            {"skills_match": 1.0, "experience_match": 1.0, "semantic_similarity": 1.0,
-             "llm_confidence": 1.0, "role_level_fit": 1.0},
-            100.0, Verdict.PRIORITY,
-        ),
-        # v=0.9 all, role=1.0 → 100 * (0.9*0.9 + 0.1*1.0) = 91.0
-        (
-            {"skills_match": 0.9, "experience_match": 0.9, "semantic_similarity": 0.9,
-             "llm_confidence": 0.9, "role_level_fit": 1.0},
-            91.0, Verdict.PRIORITY,
-        ),
-        # Just above PRIORITY boundary: 82.0.
-        # v=0.8 on the four weighted-sum signals, role_level_fit=1.0 →
-        #   100 * (0.30·0.8 + 0.20·0.8 + 0.15·0.8 + 0.25·0.8 + 0.10·1.0)
-        # = 100 * (0.24 + 0.16 + 0.12 + 0.20 + 0.10) = 82.0.
-        (
-            {"skills_match": 0.8, "experience_match": 0.8, "semantic_similarity": 0.8,
-             "llm_confidence": 0.8, "role_level_fit": 1.0},
-            82.0, Verdict.PRIORITY,
-        ),
-        # ── APPLY (65 ≤ score < 80) ──────────────────────────────────────────
-        # Just below PRIORITY: 79.9.
-        (
-            {"skills_match": 0.799, "experience_match": 0.799, "semantic_similarity": 0.799,
-             "llm_confidence": 0.799, "role_level_fit": 1.0},
-            81.91, Verdict.PRIORITY,
-        ),
-        # Mid-APPLY zone
-        (
-            {"skills_match": 0.7, "experience_match": 0.7, "semantic_similarity": 0.7,
-             "llm_confidence": 0.7, "role_level_fit": 1.0},
-            73.0, Verdict.APPLY,
-        ),
-        # ── REVIEW (50 ≤ score < 65) ─────────────────────────────────────────
-        (
-            {"skills_match": 0.55, "experience_match": 0.55, "semantic_similarity": 0.55,
-             "llm_confidence": 0.55, "role_level_fit": 1.0},
-            59.5, Verdict.REVIEW,
-        ),
-        # ── SKIP (score < 50) ────────────────────────────────────────────────
-        (
-            {"skills_match": 0.3, "experience_match": 0.3, "semantic_similarity": 0.3,
-             "llm_confidence": 0.3, "role_level_fit": 0.5},
-            32.0, Verdict.SKIP,
-        ),
-        # All zeros = 0.0 → SKIP
-        (
-            {"skills_match": 0.0, "experience_match": 0.0, "semantic_similarity": 0.0,
-             "llm_confidence": 0.0, "role_level_fit": 0.0},
-            0.0, Verdict.SKIP,
-        ),
-    ])
-    def test_verdict_from_fixed_signals(self, signals, expected_score, expected_verdict):
+    @pytest.mark.parametrize(
+        "signals,expected_score,expected_verdict",
+        [
+            # ── PRIORITY (score ≥ 80) ────────────────────────────────────────────
+            # all-ones = 100.0, well above priority
+            (
+                {
+                    "skills_match": 1.0,
+                    "experience_match": 1.0,
+                    "semantic_similarity": 1.0,
+                    "llm_confidence": 1.0,
+                    "role_level_fit": 1.0,
+                },
+                100.0,
+                Verdict.PRIORITY,
+            ),
+            # v=0.9 all, role=1.0 → 100 * (0.9*0.9 + 0.1*1.0) = 91.0
+            (
+                {
+                    "skills_match": 0.9,
+                    "experience_match": 0.9,
+                    "semantic_similarity": 0.9,
+                    "llm_confidence": 0.9,
+                    "role_level_fit": 1.0,
+                },
+                91.0,
+                Verdict.PRIORITY,
+            ),
+            # Just above PRIORITY boundary: 82.0.
+            # v=0.8 on the four weighted-sum signals, role_level_fit=1.0 →
+            #   100 * (0.30·0.8 + 0.20·0.8 + 0.15·0.8 + 0.25·0.8 + 0.10·1.0)
+            # = 100 * (0.24 + 0.16 + 0.12 + 0.20 + 0.10) = 82.0.
+            (
+                {
+                    "skills_match": 0.8,
+                    "experience_match": 0.8,
+                    "semantic_similarity": 0.8,
+                    "llm_confidence": 0.8,
+                    "role_level_fit": 1.0,
+                },
+                82.0,
+                Verdict.PRIORITY,
+            ),
+            # ── APPLY (65 ≤ score < 80) ──────────────────────────────────────────
+            # Just below PRIORITY: 79.9.
+            (
+                {
+                    "skills_match": 0.799,
+                    "experience_match": 0.799,
+                    "semantic_similarity": 0.799,
+                    "llm_confidence": 0.799,
+                    "role_level_fit": 1.0,
+                },
+                81.91,
+                Verdict.PRIORITY,
+            ),
+            # Mid-APPLY zone
+            (
+                {
+                    "skills_match": 0.7,
+                    "experience_match": 0.7,
+                    "semantic_similarity": 0.7,
+                    "llm_confidence": 0.7,
+                    "role_level_fit": 1.0,
+                },
+                73.0,
+                Verdict.APPLY,
+            ),
+            # ── REVIEW (50 ≤ score < 65) ─────────────────────────────────────────
+            (
+                {
+                    "skills_match": 0.55,
+                    "experience_match": 0.55,
+                    "semantic_similarity": 0.55,
+                    "llm_confidence": 0.55,
+                    "role_level_fit": 1.0,
+                },
+                59.5,
+                Verdict.REVIEW,
+            ),
+            # ── SKIP (score < 50) ────────────────────────────────────────────────
+            (
+                {
+                    "skills_match": 0.3,
+                    "experience_match": 0.3,
+                    "semantic_similarity": 0.3,
+                    "llm_confidence": 0.3,
+                    "role_level_fit": 0.5,
+                },
+                32.0,
+                Verdict.SKIP,
+            ),
+            # All zeros = 0.0 → SKIP
+            (
+                {
+                    "skills_match": 0.0,
+                    "experience_match": 0.0,
+                    "semantic_similarity": 0.0,
+                    "llm_confidence": 0.0,
+                    "role_level_fit": 0.0,
+                },
+                0.0,
+                Verdict.SKIP,
+            ),
+        ],
+    )
+    def test_verdict_from_fixed_signals(
+        self, signals, expected_score, expected_verdict
+    ):
         r = score(Signals(**signals))
         assert r.apply_score == pytest.approx(expected_score, abs=1e-9)
         assert r.verdict == expected_verdict
@@ -268,8 +333,11 @@ class TestVerdictBoundaries:
         The semantic commitment: if a score ≥ priority, verdict must be PRIORITY.
         """
         s = Signals(
-            skills_match=0.8, experience_match=0.8,
-            semantic_similarity=0.8, llm_confidence=0.8, role_level_fit=1.0,
+            skills_match=0.8,
+            experience_match=0.8,
+            semantic_similarity=0.8,
+            llm_confidence=0.8,
+            role_level_fit=1.0,
         )
         r = score(s)
         assert r.apply_score >= THRESHOLDS.priority
@@ -283,8 +351,11 @@ class TestVerdictBoundaries:
           = 100 * (0.693 + 0.10) = 79.3
         """
         s = Signals(
-            skills_match=0.77, experience_match=0.77,
-            semantic_similarity=0.77, llm_confidence=0.77, role_level_fit=1.0,
+            skills_match=0.77,
+            experience_match=0.77,
+            semantic_similarity=0.77,
+            llm_confidence=0.77,
+            role_level_fit=1.0,
         )
         r = score(s)
         assert r.apply_score == pytest.approx(79.3, abs=1e-9)
@@ -301,8 +372,11 @@ class TestDecisionTrace:
         """Dominant signal must be the one with highest weight × value."""
         # skills_match dominates: 0.30 * 0.9 = 0.27 > all others
         s = Signals(
-            skills_match=0.9, experience_match=0.1,
-            semantic_similarity=0.1, llm_confidence=0.1, role_level_fit=0.0,
+            skills_match=0.9,
+            experience_match=0.1,
+            semantic_similarity=0.1,
+            llm_confidence=0.1,
+            role_level_fit=0.0,
         )
         r = score(s)
         assert r.decision_trace.dominant_signal == "skills_match"
@@ -316,8 +390,11 @@ class TestDecisionTrace:
         skills wins per the tie-break rule.
         """
         s = Signals(
-            skills_match=0.4, experience_match=0.6,
-            semantic_similarity=0.0, llm_confidence=0.0, role_level_fit=0.0,
+            skills_match=0.4,
+            experience_match=0.6,
+            semantic_similarity=0.0,
+            llm_confidence=0.0,
+            role_level_fit=0.0,
         )
         r = score(s)
         assert r.decision_trace.dominant_signal == "skills_match"
@@ -326,7 +403,9 @@ class TestDecisionTrace:
         """Removing a positive LLM signal must not *increase* the score."""
         s = _strong_signals()
         r = score(s)
-        assert r.decision_trace.decision_sensitivity.if_llm_removed_score <= r.apply_score
+        assert (
+            r.decision_trace.decision_sensitivity.if_llm_removed_score <= r.apply_score
+        )
 
     def test_sensitivity_if_skills_boosted_is_higher_or_equal(self):
         """Boosting skills by 10% must not *decrease* the score."""
@@ -343,8 +422,10 @@ class TestDecisionTrace:
         r = score(s)
         # Maximum possible: 100 * (0.30*1.0 + 0.20*1.0 + 0.15*0.8 + 0.25*0.9 + 0.10*1.0)
         #                 = 100 * (0.30 + 0.20 + 0.12 + 0.225 + 0.10) = 94.5
-        assert r.decision_trace.decision_sensitivity.if_skills_boosted_plus_10pct \
+        assert (
+            r.decision_trace.decision_sensitivity.if_skills_boosted_plus_10pct
             == pytest.approx(94.5, abs=1e-9)
+        )
 
     def test_near_threshold_flag_fires_when_close_to_boundary(self):
         """Score 81 is 1 point above the PRIORITY threshold → near flag."""
@@ -356,19 +437,27 @@ class TestDecisionTrace:
             WEIGHTS.skills + WEIGHTS.experience + WEIGHTS.semantic + WEIGHTS.llm
         )
         s = Signals(
-            skills_match=v, experience_match=v,
-            semantic_similarity=v, llm_confidence=v, role_level_fit=1.0,
+            skills_match=v,
+            experience_match=v,
+            semantic_similarity=v,
+            llm_confidence=v,
+            role_level_fit=1.0,
         )
         r = score(s, thresholds=t)
         assert r.apply_score == pytest.approx(81.0, abs=1e-9)
         assert r.decision_trace.near_threshold_flag is True
-        assert r.decision_trace.nearest_threshold_distance == pytest.approx(1.0, abs=1e-9)
+        assert r.decision_trace.nearest_threshold_distance == pytest.approx(
+            1.0, abs=1e-9
+        )
 
     def test_near_threshold_flag_off_when_far_from_boundary(self):
         """A PRIORITY score of 95 is far from every boundary."""
         s = Signals(
-            skills_match=0.95, experience_match=1.0,
-            semantic_similarity=0.95, llm_confidence=0.95, role_level_fit=1.0,
+            skills_match=0.95,
+            experience_match=1.0,
+            semantic_similarity=0.95,
+            llm_confidence=0.95,
+            role_level_fit=1.0,
         )
         r = score(s)
         assert r.decision_trace.near_threshold_flag is False
@@ -389,6 +478,7 @@ class TestReproducibilityMetadata:
     def test_engine_version_stamped_on_result(self):
         r = score(_strong_signals())
         from src.config import ENGINE_VERSION
+
         assert r.engine_version == ENGINE_VERSION
 
     def test_custom_weights_override_stamped_correctly(self):
@@ -415,11 +505,16 @@ class TestEnginePurity:
         ).read_text(encoding="utf-8")
 
         forbidden = [
-            "import pymongo", "from pymongo",
-            "import openai", "from openai",
-            "import requests", "from requests",
-            "import httpx", "from httpx",
-            "import aiohttp", "from aiohttp",
+            "import pymongo",
+            "from pymongo",
+            "import openai",
+            "from openai",
+            "import requests",
+            "from requests",
+            "import httpx",
+            "from httpx",
+            "import aiohttp",
+            "from aiohttp",
         ]
         for needle in forbidden:
             assert needle not in scorer_src, (

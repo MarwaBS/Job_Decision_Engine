@@ -27,7 +27,9 @@ def _profile(summary: str) -> CandidateProfile:
     )
 
 
-def _job(title: str = "ML Engineer", required_skills: list[str] | None = None) -> ParsedJob:
+def _job(
+    title: str = "ML Engineer", required_skills: list[str] | None = None
+) -> ParsedJob:
     return ParsedJob(title=title, required_skills=required_skills or [])
 
 
@@ -64,7 +66,8 @@ class TestProviderProtocol:
 class TestSemanticSimilarity:
     def test_returns_float_in_zero_one(self):
         score = compute_semantic_similarity(
-            _job(), _profile("ML engineer"),
+            _job(),
+            _profile("ML engineer"),
             provider=MockEmbeddingProvider(),
         )
         assert 0.0 <= score <= 1.0
@@ -81,10 +84,14 @@ class TestSemanticSimilarity:
         stateless. This is the property that lets tests construct ad-hoc
         providers without coordinating instances."""
         a = compute_semantic_similarity(
-            _job(), _profile("x"), provider=MockEmbeddingProvider(),
+            _job(),
+            _profile("x"),
+            provider=MockEmbeddingProvider(),
         )
         b = compute_semantic_similarity(
-            _job(), _profile("x"), provider=MockEmbeddingProvider(),
+            _job(),
+            _profile("x"),
+            provider=MockEmbeddingProvider(),
         )
         assert a == b
 
@@ -96,7 +103,9 @@ class TestSemanticSimilarity:
         # Profile summary set to the same string.
         profile = _profile("identical")
         score = compute_semantic_similarity(
-            job, profile, provider=MockEmbeddingProvider(),
+            job,
+            profile,
+            provider=MockEmbeddingProvider(),
         )
         assert score == pytest.approx(1.0, abs=1e-9)
 
@@ -115,7 +124,9 @@ class TestSemanticSimilarity:
                 return (0.0, 0.0, 0.0, 0.0)
 
         score = compute_semantic_similarity(
-            _job(), _profile("x"), provider=ZeroProvider(),
+            _job(),
+            _profile("x"),
+            provider=ZeroProvider(),
         )
         # Zero vectors → cosine defined as 0 → signal = 0.5 (mapping)
         assert score == pytest.approx(0.5, abs=1e-9)
@@ -136,7 +147,9 @@ class TestSemanticSimilarity:
 
         with pytest.raises(ValueError, match="dimension mismatch"):
             compute_semantic_similarity(
-                _job(), _profile("x"), provider=BadProvider(),
+                _job(),
+                _profile("x"),
+                provider=BadProvider(),
             )
 
 
@@ -168,3 +181,59 @@ class TestSignalContract:
         # cosines). We just assert the signal produces distinguishable
         # outputs, not a specific direction.
         assert near != far
+
+
+# -- Revision pinning (determinism of the production embedding path) ----------
+
+
+class TestRevisionPinning:
+    """The semantic signal feeds apply_score, which the project advertises
+    as deterministic. That claim is only true if the production embedder
+    loads a PINNED model revision everywhere it is constructed."""
+
+    def test_provider_passes_pinned_revision_to_sentence_transformer(self, monkeypatch):
+        """Hermetic: inject a fake sentence_transformers module and assert
+        the lazy constructor receives the pinned revision — pinning that
+        exists in source but never reaches the library is no pin at all."""
+        import sys
+        import types
+
+        from src.signals.semantic import _MODEL_REVISION, SentenceTransformerProvider
+
+        captured: dict[str, object] = {}
+
+        class _FakeModel:
+            def __init__(self, model_name, revision=None):
+                captured["model_name"] = model_name
+                captured["revision"] = revision
+
+            def encode(self, text, **kwargs):
+                return [0.1, 0.2, 0.3]
+
+        fake_module = types.ModuleType("sentence_transformers")
+        fake_module.SentenceTransformer = _FakeModel
+        monkeypatch.setitem(sys.modules, "sentence_transformers", fake_module)
+
+        provider = SentenceTransformerProvider()
+        provider.embed("warmup")
+
+        assert captured["model_name"] == "sentence-transformers/all-MiniLM-L6-v2"
+        assert captured["revision"] == _MODEL_REVISION
+
+    def test_dockerfile_prewarm_revision_matches_pin(self):
+        """The Docker build pre-warms the model cache BEFORE the source tree
+        is copied (layer caching), so it hardcodes the revision. If it
+        drifts from src/signals/semantic.py::_MODEL_REVISION, every cold
+        start silently re-downloads the pinned snapshot — defeating the
+        pre-warm — or worse, serves a different model than advertised."""
+        from pathlib import Path
+
+        from src.signals.semantic import _MODEL_REVISION
+
+        dockerfile = (Path(__file__).parent.parent / "Dockerfile").read_text(
+            encoding="utf-8"
+        )
+        assert f"revision='{_MODEL_REVISION}'" in dockerfile, (
+            "Dockerfile pre-warm must pass the exact revision pinned in "
+            "src/signals/semantic.py::_MODEL_REVISION"
+        )

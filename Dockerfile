@@ -39,8 +39,17 @@ RUN pip install --user --no-cache-dir -r requirements.txt
 # Pre-warm the sentence-transformers model at build time. First real
 # request becomes instant; subsequent image rebuilds reuse the layer.
 # The download path ~/.cache/huggingface/hub is owned by `user`.
+#
+# The revision MUST match src/signals/semantic.py::_MODEL_REVISION — the
+# runtime loads that exact pin, so pre-warming an unpinned `main` would
+# cache the wrong snapshot and re-download the pinned one on every cold
+# start the moment upstream moves. Enforced by
+# tests/test_semantic.py::test_dockerfile_prewarm_revision_matches_pin.
+# (Hardcoded rather than imported because this layer runs before the
+# source tree is copied, to stay cacheable across source edits.)
 RUN python -c "from sentence_transformers import SentenceTransformer; \
-               SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+               SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2', \
+               revision='1110a243fdf4706b3f48f1d95db1a4f5529b4d41')"
 
 # Copy the source tree. .dockerignore keeps MEMORY/, docs/, tests/, .git/,
 # EXECUTION_RULES.md, __pycache__, etc. out of the image.

@@ -28,7 +28,7 @@ against its original config and compared.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 from src.db import Store
@@ -86,7 +86,9 @@ def persist_outcome_submitted(store: Store, decision_id: str) -> str:
 def advance_outcome(
     store: Store,
     decision_id: str,
-    stage: Literal["CALLBACK", "INTERVIEW", "OFFER", "REJECTED", "GHOSTED", "WITHDRAWN"],
+    stage: Literal[
+        "CALLBACK", "INTERVIEW", "OFFER", "REJECTED", "GHOSTED", "WITHDRAWN"
+    ],
 ) -> None:
     """Append a new stage to an existing outcome and close it if terminal.
 
@@ -150,7 +152,7 @@ def persist_feedback(
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 __all__ = [
