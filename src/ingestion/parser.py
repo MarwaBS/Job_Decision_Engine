@@ -58,10 +58,15 @@ _LOCATION_LINE_PATTERN = re.compile(
 # shape backtracks polynomially on long whitespace runs in user-pasted text
 # (CodeQL py/polynomial-redos). Optional groups must contain a required
 # character that anchors any inner whitespace.
+# Years are 1-2 digit numbers anchored against digit runs on both sides
+# (`(?<!\d)...(?!\d)`): unbounded `(\d+)` lets a pasted blob of digits match
+# at every offset, turning the search quadratic ("many repetitions of '9'" —
+# the second half of the same CodeQL finding). Bounding also stops year-like
+# numbers ("2026") from being misread as an experience requirement.
 _YEARS_PATTERN = re.compile(
-    r"(\d+)(?:\s*\+)?\s+(?:to\s+\d+\s+)?(?:years?|yrs?)\s+of\s+experience"
-    r"|(\d+)\s*\+\s*(?:years?|yrs?)"
-    r"|(\d+)\s*(?:-|to|–)\s*\d+\s*(?:years?|yrs?)",
+    r"(?<!\d)(\d{1,2})(?!\d)(?:\s*+\+)?\s+(?:to\s+\d{1,2}\s+)?(?:years?|yrs?)\s+of\s+experience"
+    r"|(?<!\d)(\d{1,2})(?!\d)\s*\+\s*(?:years?|yrs?)"
+    r"|(?<!\d)(\d{1,2})(?!\d)\s*(?:-|to|–)\s*\d{1,2}\s*(?:years?|yrs?)",
     re.IGNORECASE,
 )
 _REMOTE_PATTERN = re.compile(r"\b(?:remote|work\s+from\s+home|wfh)\b", re.IGNORECASE)

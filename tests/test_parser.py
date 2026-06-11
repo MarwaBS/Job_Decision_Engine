@@ -287,10 +287,24 @@ class TestPathologicalWhitespace:
         """
         import time
 
-        evil = "Title: Engineer\n$100" + " " * 50_000 + "x\n5" + " " * 50_000 + "y"
+        evil = (
+            "Title: Engineer\n$100"
+            + " " * 50_000
+            + "x\n5"
+            + " " * 50_000
+            + "y\n"
+            + "9" * 50_000  # digit-run attack on the years pattern
+        )
         start = time.perf_counter()
         parse_job(evil)
         assert time.perf_counter() - start < 5.0
+
+    def test_year_like_numbers_are_not_experience_requirements(self):
+        """Side benefit of bounding the years regex to 1-2 digits."""
+        assert (
+            parse_job("Posted in 2026, 120 years of history.").parsed.years_required
+            is None
+        )
 
 
 # ── Parser purity ────────────────────────────────────────────────────────────
