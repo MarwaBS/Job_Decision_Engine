@@ -4,6 +4,6 @@
 # CI's `lint` job enforces (ruff check, ruff format --check, mypy) — pinned
 # exactly so a tool upgrade can never silently change what "green" means.
 
-ruff==0.15.16
+ruff==0.15.17
 mypy==2.1.0
 types-PyYAML==6.0.12.20260518
