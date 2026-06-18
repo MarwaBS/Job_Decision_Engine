@@ -15,10 +15,13 @@ Design:
 - If the candidate has fewer years → linear fall-off with a floor at 0.0.
   A 5-year requirement and a 3-year candidate scores 3/5 = 0.6. A 5-year
   requirement and a 0-year candidate scores 0.0.
-- If the candidate has significantly MORE years than required (≥ 2× or > 5
-  years over), the signal is still 1.0 but a `note` surfaces to the trace —
-  over-qualification is a valid concern but belongs in the LLM's "risks"
-  output, not in the deterministic score.
+- If the candidate has significantly MORE years than required, the signal is
+  still **1.0**. Over-qualification is a valid concern, but it is deliberately
+  NOT expressed in the deterministic score or the decision trace: it is left to
+  the LLM, whose prompt receives both `years_required` and `years_experience`
+  and is explicitly instructed to raise over-qualification under "risks". Baking
+  a fixed over-qualification penalty into the score would punish strong
+  candidates by rule; flagging it as a soft, contextual risk is the right place.
 
 The function is pure: same inputs → same output, no I/O.
 """
@@ -51,19 +54,3 @@ def compute_experience_match(job: ParsedJob, profile: CandidateProfile) -> float
     # Linear fall-off from required → 0.
     ratio = have / required
     return max(0.0, min(1.0, ratio))
-
-
-def is_overqualified(job: ParsedJob, profile: CandidateProfile) -> bool:
-    """Return True if the candidate has significantly more experience than required.
-
-    Heuristic: `have >= 2 * required` OR `have - required > 5`.
-    This signal does NOT feed the deterministic score. It is part of the
-    experience module's public API so any consumer (UI panels, prompt
-    construction) shares one definition of "over-qualified" instead of
-    re-deriving the heuristic.
-    """
-    required = job.years_required
-    if required is None or required <= 0:
-        return False
-    have = profile.years_experience
-    return have >= 2.0 * required or (have - required) > 5.0

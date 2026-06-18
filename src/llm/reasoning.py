@@ -221,7 +221,7 @@ class OpenAIReasoner:
     def _ensure_client(self) -> Any:
         if self._client is None:
             try:
-                from openai import OpenAI  # noqa: WPS433
+                from openai import OpenAI  # lazy import: optional provider dep
             except ImportError as e:  # pragma: no cover
                 raise RuntimeError(
                     "openai SDK is not installed. Install from requirements.txt, "
@@ -282,7 +282,7 @@ class OpenAIReasoner:
         single catch keeps the "decision still ships" contract — a flaky
         network must never crash an evaluation."""
         client = self._ensure_client()
-        from openai import OpenAIError  # noqa: WPS433 — lazy, like the client
+        from openai import OpenAIError  # lazy import, like the client
 
         try:
             resp = client.chat.completions.create(

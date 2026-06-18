@@ -11,6 +11,7 @@ import pytest
 from src.schemas import CandidateProfile, ParsedJob, Seniority
 from src.signals.skills import (
     SKILLS_TAXONOMY,
+    _normalise,
     compute_skills_match,
     extract_skills,
 )
@@ -148,6 +149,21 @@ class TestExtraction:
         regression. Every one of them also matched under plain word-boundary
         matching, so list-context gating strictly tightened precision."""
         assert residual_phantom in extract_skills(text).all
+
+    def test_profile_side_resolves_ambiguous_alias_without_list_gate(self):
+        """The profile-side asymmetry is intentional (see _build_alias_lookup):
+        ambiguous tokens are gated to list-context only on the EXTRACTION side
+        (JD prose). On the profile side, _normalise matches the WHOLE entry
+        exactly, so a discrete list item literally equal to "cv"/"r" resolves to
+        its canonical — that entry IS list context — while prose embedding the
+        token does not (the whole string is the key, not a substring)."""
+        # Discrete ambiguous entries resolve to canonicals.
+        assert _normalise(["cv"]) == {"computer vision"}
+        assert _normalise(["r"]) == {"r"}
+        assert _normalise(["de"]) == {"data engineering"}
+        # Prose in a single entry does NOT spuriously resolve the embedded token.
+        assert _normalise(["experience with go"]) == {"experience with go"}
+        assert "computer vision" not in _normalise(["my cv is attached"])
 
     def test_boundary_anchoring_still_matches_real_mentions(self):
         """The anchors must not cost recall on legitimate mentions —

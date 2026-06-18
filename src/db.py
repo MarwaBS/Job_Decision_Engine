@@ -231,7 +231,7 @@ class MongoStore:
         database: str = "job_decision_engine",
     ) -> None:
         try:
-            from pymongo import MongoClient  # noqa: WPS433
+            from pymongo import MongoClient  # lazy import: optional backend dep
         except ImportError as e:  # pragma: no cover
             raise RuntimeError(
                 "pymongo is not installed. Install from requirements.txt "

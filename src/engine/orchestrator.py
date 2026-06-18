@@ -224,7 +224,10 @@ def _check_dealbreakers(job: ParsedJob, profile: CandidateProfile) -> bool:
                                  penalise missing data" principle the
                                  experience and role-level signals follow.
         "no_pytorch"          — fires when the JD lists pytorch as a
-                                 required skill.
+                                 required OR preferred skill. A dealbreaker is a
+                                 hard "I won't do this"; a "nice-to-have" PyTorch
+                                 still means the role expects PyTorch, so checking
+                                 required_skills only silently let those through.
 
     Anything the function doesn't recognise is ignored (forward-compatible
     with future vocabulary expansion; `CandidateProfile` rejects unknown
@@ -239,7 +242,7 @@ def _check_dealbreakers(job: ParsedJob, profile: CandidateProfile) -> bool:
             if job.remote is False:
                 return True
         elif key == "no_pytorch":
-            if "pytorch" in job.required_skills:
+            if "pytorch" in job.required_skills or "pytorch" in job.preferred_skills:
                 return True
     return False
 

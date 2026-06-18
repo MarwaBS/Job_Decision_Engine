@@ -33,6 +33,13 @@ class TestStructuredHappyPath:
         j = parse_job(STRUCTURED_JD)
         assert j.parsed.title == "Senior ML Engineer"
 
+    def test_title_fallback_skips_leading_bullet(self):
+        """With no 'Title:' line, the fallback takes the first NON-bullet line: a
+        leading '- ...' bullet is body content (a responsibility), not the role
+        name. Previously the bullet line itself was captured as the title."""
+        jd = "- Drive end-to-end ML delivery\nStaff ML Engineer\nRemote, full-time."
+        assert parse_job(jd).parsed.title == "Staff ML Engineer"
+
     def test_company_extracted(self):
         assert parse_job(STRUCTURED_JD).parsed.company == "Acme Corp"
 
@@ -248,10 +255,12 @@ class TestSalary:
     def test_no_salary_returns_none(self):
         assert parse_job("Great role.").parsed.salary_range_usd is None
 
-    def test_inverted_salary_range_returns_none_with_warning(self):
-        """$200k-$100k is malformed — don't invent an answer, warn."""
+    def test_inverted_salary_range_is_swapped_with_warning(self):
+        """$200k-$100k is transposed, not garbage — a salary range is order-
+        independent, so recover it by swapping to (100k, 200k) rather than
+        dropping the only compensation signal, and still flag the inversion."""
         j = parse_job("Salary $200k-$100k")
-        assert j.parsed.salary_range_usd is None
+        assert j.parsed.salary_range_usd == (100000, 200000)
         assert "salary_range_inverted" in j.parse_warnings
 
     def test_salary_comma_thousands_format(self):

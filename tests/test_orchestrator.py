@@ -20,7 +20,11 @@ from __future__ import annotations
 import pytest
 
 from src.db import InMemoryStore
-from src.engine.orchestrator import compute_role_level_fit, evaluate_job
+from src.engine.orchestrator import (
+    _check_dealbreakers,
+    compute_role_level_fit,
+    evaluate_job,
+)
 from src.llm.reasoning import FailingReasoner, MockReasoner
 from src.schemas import (
     CandidateProfile,
@@ -280,6 +284,26 @@ Location: Remote
             embedding_provider=_mock_embeddings(),
         )
         assert d.signals.dealbreaker_hit is False
+
+    def test_no_pytorch_fires_on_preferred_skill_not_just_required(self):
+        """Regression: the dealbreaker checked required_skills ONLY, so a JD listing
+        pytorch as a 'nice-to-have' (preferred_skills) slipped through. A dealbreaker
+        is a hard "no"; it must fire on either list. Built directly to control the
+        required/preferred split the parser would otherwise decide."""
+        profile = _alex_rivera().model_copy(update={"dealbreakers": ["no_pytorch"]})
+        job_preferred = ParsedJob(
+            title="ML Engineer",
+            required_skills=["python", "aws"],
+            preferred_skills=["pytorch"],
+        )
+        assert _check_dealbreakers(job_preferred, profile) is True
+        # Control: pytorch in neither list → does not fire.
+        job_neither = ParsedJob(
+            title="Data Engineer",
+            required_skills=["python", "sql"],
+            preferred_skills=["airflow"],
+        )
+        assert _check_dealbreakers(job_neither, profile) is False
 
 
 # ── compute_role_level_fit ───────────────────────────────────────────────────

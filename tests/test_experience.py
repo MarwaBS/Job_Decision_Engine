@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from src.schemas import CandidateProfile, ParsedJob, Seniority
-from src.signals.experience import compute_experience_match, is_overqualified
+from src.signals.experience import compute_experience_match
 
 
 def _profile(years: float) -> CandidateProfile:
@@ -71,19 +71,8 @@ class TestExperienceMatch:
         b = compute_experience_match(_job(5.0), _profile(3.0))
         assert a == b
 
-
-class TestOverqualified:
-    def test_no_required_years_not_overqualified(self):
-        assert is_overqualified(_job(None), _profile(20.0)) is False
-
-    def test_exactly_required_not_overqualified(self):
-        assert is_overqualified(_job(5.0), _profile(5.0)) is False
-
-    def test_2x_required_is_overqualified(self):
-        assert is_overqualified(_job(5.0), _profile(10.0)) is True
-
-    def test_more_than_five_over_is_overqualified(self):
-        assert is_overqualified(_job(5.0), _profile(11.0)) is True
-
-    def test_close_to_required_not_overqualified(self):
-        assert is_overqualified(_job(5.0), _profile(7.0)) is False
+    def test_significant_overqualification_still_scores_one(self):
+        """Over-qualification is NOT penalised in the deterministic signal — it is
+        left to the LLM's "risks" output (see module docstring). A 4x-experienced
+        candidate still scores 1.0, not a reduced value."""
+        assert compute_experience_match(_job(5.0), _profile(20.0)) == 1.0

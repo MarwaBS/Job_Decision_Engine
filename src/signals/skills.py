@@ -274,6 +274,18 @@ def _build_alias_lookup() -> dict[str, str]:
     JD-extracted "scikit-learn". Aliases that are regex fragments are
     translated by unescaping the constructs the taxonomy actually uses;
     anything still containing a backslash is extraction-only.
+
+    Ambiguous-token asymmetry (intentional): the extraction side gates the
+    ambiguous tokens in ``_AMBIGUOUS_TOKENS`` ("r", "cv", "de", "tf", ...) to a
+    strong list-context delimiter so they don't false-match inside JD *prose*
+    ("...experience with R&D..."). This lookup applies those aliases with no such
+    gate — and correctly so: ``_normalise`` matches a profile entry by EXACT
+    whole-string equality (``_ALIAS_LOOKUP.get(key)`` where ``key`` is the entire
+    stripped, lower-cased entry). A profile skill is a discrete list item, so an
+    entry that resolves an ambiguous alias is one the candidate typed as exactly
+    "r"/"cv"/"de" — already the list context the extraction side has to
+    reconstruct from prose. Prose like "experience with go" never matches here
+    (the whole string is the key, not a substring), so the gate is unnecessary.
     """
     lookup: dict[str, str] = {}
     for canonical, aliases in _all_skills().items():

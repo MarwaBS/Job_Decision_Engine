@@ -108,7 +108,8 @@ class SentenceTransformerProvider:
     def embed(self, text: str) -> tuple[float, ...]:
         if self._model is None:
             try:
-                from sentence_transformers import SentenceTransformer  # noqa: WPS433
+                # lazy import: heavy ML dep, kept out of module import
+                from sentence_transformers import SentenceTransformer
             except ImportError as e:
                 raise RuntimeError(
                     "sentence-transformers is not installed. "
