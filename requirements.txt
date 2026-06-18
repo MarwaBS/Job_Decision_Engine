@@ -17,7 +17,7 @@ pydantic==2.13.3
 # ── Semantic similarity signal (Step 3) ──────────────────────────────────────
 # Lazy-imported inside SentenceTransformerProvider. Tests use the mock
 # provider and do NOT need this installed — keeps CI fast and hermetic.
-sentence-transformers==5.4.1
+sentence-transformers==5.5.1
 
 # ── Persistence layer (Step 4) ───────────────────────────────────────────────
 # pymongo is lazy-imported inside MongoStore; tests use InMemoryStore and
