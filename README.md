@@ -133,7 +133,7 @@ design; it is captured per-decision for replay):
 |---|---|
 | **PRIORITY** (≥80) | Apply same day. Use the talking points; address gaps in cover letter. |
 | **APPLY** (65–80) | Apply within the week. Read the trace first — if `near_threshold_flag = True` (within 3 points of REVIEW), check the LLM gaps before drafting. |
-| **REVIEW** (50–65) | Read the JD manually. The system flags this when it can't be confident. About 30% of my real-world JDs land here. |
+| **REVIEW** (50–65) | Read the JD manually. The system flags this band when it can't be confident either way. |
 | **SKIP** (<50) | Trust the system. Move on. |
 | **PARSE_FAILURE** (orthogonal — not a score tier) | The JD couldn't be parsed reliably (`parse_confidence < 0.5`). `apply_score` is `None` (not 0) — score is undefined, not "0% match". Re-paste a cleaner copy of the JD or read it manually. |
 

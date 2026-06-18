@@ -1,11 +1,11 @@
 """Pydantic data contracts for the Job Decision Engine.
 
-Every type that crosses a module boundary is defined here. The architecture
-(docs/ARCHITECTURE.md §5 and §6) is the authoritative source. If the code below
-diverges from the architecture, the architecture wins — fix the code.
+Every type that crosses a module boundary is defined here. These Pydantic
+models ARE the authoritative data contracts for the engine — they are the
+source of truth, and every other module is held to the shapes defined below.
 
 Design rules enforced here:
-- Weights sum to 1.0 (architecture §6).
+- Weights sum to 1.0.
 - Signals are all bounded to [0, 1] except `role_level_fit` which is {0, 0.5, 1}.
 - Every decision stores the weights and thresholds_version it was scored with,
   so old decisions remain reproducible after v2 retuning.
@@ -27,7 +27,7 @@ class Verdict(StrEnum):
 
     Two orthogonal axes:
 
-    - Fit-signal verdicts (architecture §6 thresholds, derived from apply_score):
+    - Fit-signal verdicts (threshold-derived from apply_score):
         PRIORITY, APPLY, REVIEW, SKIP.
     - Input-quality verdict (orthogonal — no apply_score is computed):
         PARSE_FAILURE. Returned when the JD could not be parsed reliably
@@ -47,8 +47,8 @@ class FailureMode(StrEnum):
     """Coded labels for structural issues flagged during scoring.
 
     None (the absence of this label on a decision) means no structural issue
-    was detected. The labels themselves are fixed — adding a new one is an
-    architecture change that requires an ADR.
+    was detected. The labels themselves are fixed — adding a new one is a
+    deliberate change to the scoring contract, not an ad-hoc addition.
     """
 
     DEALBREAKER_HIT = "dealbreaker_hit"
@@ -71,7 +71,7 @@ class Seniority(StrEnum):
 class Signals(BaseModel):
     """Signal vector computed from (Job, Profile). Input to the scorer.
 
-    Architecture §6 — five signals, all in [0, 1] except role_level_fit.
+    The five scoring signals, all in [0, 1] except role_level_fit.
     Additional fields (dealbreaker_hit, parse_confidence) gate the hard filters
     applied *before* the weighted sum.
     """
@@ -91,7 +91,7 @@ class Signals(BaseModel):
     @field_validator("role_level_fit")
     @classmethod
     def _check_role_level_discrete(cls, v: float) -> float:
-        """role_level_fit is {0, 0.5, 1} per architecture §6."""
+        """role_level_fit is constrained to the discrete set {0, 0.5, 1}."""
         allowed = {0.0, 0.5, 1.0}
         if v not in allowed:
             raise ValueError(f"role_level_fit must be one of {allowed}, got {v}")
@@ -99,10 +99,11 @@ class Signals(BaseModel):
 
 
 class Weights(BaseModel):
-    """Scoring weights. Architecture §6.
+    """Scoring weights.
 
     Weights are priors, not learned parameters. They represent design intent,
-    not statistical optimization. Any change requires an ADR.
+    not statistical optimization. Any change is a deliberate retuning, paired
+    with a version bump so old decisions stay reproducible.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -118,14 +119,12 @@ class Weights(BaseModel):
         total = self.skills + self.experience + self.semantic + self.llm + self.role
         # Allow a tiny float tolerance but refuse meaningful drift.
         if abs(total - 1.0) > 1e-9:
-            raise ValueError(
-                f"weights must sum to 1.0 (architecture §6). got {total!r}"
-            )
+            raise ValueError(f"weights must sum to 1.0. got {total!r}")
         return self
 
 
 class Thresholds(BaseModel):
-    """Score → verdict cutoffs. Architecture §6.
+    """Score → verdict cutoffs.
 
     Versioned so old decisions remain reproducible after retuning.
     """
@@ -147,7 +146,7 @@ class Thresholds(BaseModel):
         return self
 
 
-# ── Decision trace (architecture §5.3, added during review) ──────────────────
+# ── Decision trace (added during review) ─────────────────────────────────────
 
 
 class DecisionSensitivity(BaseModel):
@@ -181,8 +180,8 @@ DominantSignal = Literal[
 class DecisionTrace(BaseModel):
     """Explains WHY a given score produced a given verdict.
 
-    Architecture §5.3 — the differentiator. Answers "what if one signal was
-    different?" with numbers, not prose.
+    The differentiator. Answers "what if one signal was different?" with
+    numbers, not prose.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -200,7 +199,7 @@ class DecisionTrace(BaseModel):
 class DecisionResult(BaseModel):
     """Full output of a single evaluate_job() call.
 
-    Stored as a `decisions` document (architecture §5.3). Includes the weights
+    Stored as a `decisions` document. Includes the weights
     and thresholds_version so old decisions remain reproducible.
     """
 
@@ -222,7 +221,7 @@ class DecisionResult(BaseModel):
     reasoning: dict | None = None
 
 
-# ── Persistence envelopes (architecture §5) ──────────────────────────────────
+# ── Persistence envelopes ────────────────────────────────────────────────────
 
 
 #: Recognized dealbreaker keys. The orchestrator's hard filter silently ignores
@@ -237,7 +236,7 @@ KNOWN_DEALBREAKERS: frozenset[str] = frozenset(
 
 
 class CandidateProfile(BaseModel):
-    """Candidate profile. Architecture §5.1.
+    """Candidate profile.
 
     Versioned: changing the profile bumps `profile_version` and persists a new
     document so past decisions stay explainable against their exact profile.
@@ -278,7 +277,7 @@ class CandidateProfile(BaseModel):
 
 
 class ParsedJob(BaseModel):
-    """Output of the ingestion layer. Architecture §5.2.
+    """Output of the ingestion layer.
 
     `parse_confidence < 0.5` triggers the REVIEW hard filter in the scorer.
     """
@@ -300,7 +299,7 @@ class ParsedJob(BaseModel):
 
 
 class Job(BaseModel):
-    """A single ingested job description. Architecture §5.2."""
+    """A single ingested job description."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -334,7 +333,7 @@ class OutcomeStage(BaseModel):
 
 
 class Outcome(BaseModel):
-    """Architecture §5.4 — manually entered by the candidate."""
+    """Job-search outcome — manually entered by the candidate."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -349,7 +348,7 @@ class Outcome(BaseModel):
 class ReasoningOutput(BaseModel):
     """LLM reasoning output — the strict JSON contract.
 
-    Architecture §7. The LLM MUST produce JSON matching this exact shape.
+    The LLM MUST produce JSON matching this exact shape.
     If it doesn't, the reasoning layer retries once; if that also fails,
     the reasoning is set to `None` on the `DecisionResult` and the scorer
     continues with `llm_confidence = 0.0` — the LLM never causes a decision
@@ -383,7 +382,7 @@ class ReasoningOutput(BaseModel):
 
 
 class FeedbackLog(BaseModel):
-    """Architecture §5.5 — user-authored corrections. Logged only, not fitted."""
+    """User-authored corrections. Logged only, not fitted."""
 
     model_config = ConfigDict(frozen=True)
 

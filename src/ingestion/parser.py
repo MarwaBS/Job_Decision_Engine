@@ -1,6 +1,6 @@
 """Job-description parser.
 
-Architecture §5.2: produces a `Job` with a `parsed: ParsedJob` payload, a
+Produces a `Job` with a `parsed: ParsedJob` payload, a
 content hash (SHA-256 of the normalised raw text), a `parse_confidence`
 score in [0, 1], and a list of `parse_warnings`.
 
@@ -45,6 +45,9 @@ _TITLE_LINE_PATTERN = re.compile(
     r"^(?:title|position|role|job\s*title)\s*+:?\s*(.+?)\s*$",
     re.IGNORECASE,
 )
+# A leading bullet ("-", "•", "*") or numbered-list marker ("1.", "2)") — used to
+# skip body content when falling back to "first line" as the title.
+_BULLET_OR_LIST_PREFIX = re.compile(r"^\s*(?:[-•*]|\d+[.)])\s+")
 _COMPANY_LINE_PATTERN = re.compile(
     r"^(?:company|employer|organization)\s*+:?\s*(.+?)\s*$",
     re.IGNORECASE,
@@ -224,12 +227,20 @@ def _extract_title(text: str, warnings: list[str]) -> tuple[str, bool]:
             return m.group(1).strip(), True
 
     for line in text.splitlines():
-        if line.strip():
-            # Guardrail: a line longer than 140 chars probably isn't a title.
-            candidate = line.strip()
-            if len(candidate) <= 140:
-                return candidate, False
-            return candidate[:140].rstrip() + "…", False
+        candidate = line.strip()
+        if not candidate:
+            continue
+        # Skip body content that is not a title: a bullet/numbered list line is
+        # a responsibility/requirement, not the role name. Taking the first such
+        # line as the title (the old behaviour) mislabeled JDs that open with a
+        # "- Responsibilities" line.
+        if _BULLET_OR_LIST_PREFIX.match(line):
+            continue
+        # Guardrail: a line longer than 140 chars is prose, not a title — keep a
+        # truncated form rather than dropping the only signal we have.
+        if len(candidate) <= 140:
+            return candidate, False
+        return candidate[:140].rstrip() + "…", False
 
     warnings.append("no_title_found")
     return "Untitled Role", False
@@ -348,8 +359,11 @@ def _extract_salary(text: str, warnings: list[str]) -> tuple[int, int] | None:
     if low < 1000 and high < 1000:
         low, high = low * 1000, high * 1000
     if low > high:
+        # The JD presented the bounds high-then-low (e.g. "$150k-$100k"). A salary
+        # range is order-independent, so swap to recover usable data rather than
+        # dropping the figure entirely; still record the inversion for the trace.
         warnings.append("salary_range_inverted")
-        return None
+        low, high = high, low
     return (low, high)
 
 

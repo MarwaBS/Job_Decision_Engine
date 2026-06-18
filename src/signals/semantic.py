@@ -1,7 +1,7 @@
 """Semantic similarity signal — `sentence-transformers` with a Protocol seam.
 
-Architecture §3: REAL, using `sentence-transformers/all-MiniLM-L6-v2`. §6:
-weight W_semantic = 0.15.
+A REAL signal, using `sentence-transformers/all-MiniLM-L6-v2`.
+Weight W_semantic = 0.15.
 
 Design — Protocol-based embedding provider:
 
@@ -108,7 +108,8 @@ class SentenceTransformerProvider:
     def embed(self, text: str) -> tuple[float, ...]:
         if self._model is None:
             try:
-                from sentence_transformers import SentenceTransformer  # noqa: WPS433
+                # lazy import: heavy ML dep, kept out of module import
+                from sentence_transformers import SentenceTransformer
             except ImportError as e:
                 raise RuntimeError(
                     "sentence-transformers is not installed. "

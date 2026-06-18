@@ -1,8 +1,8 @@
 """Tests for the data contracts (`src.schemas`).
 
-These tests enforce the rules from architecture §5 and §6 at the Pydantic
-layer. If any of these fail, the contracts have drifted from the
-architecture — fix the code, not the test.
+These tests enforce the data-contract rules at the Pydantic layer:
+signal bounds, weights summing to 1.0, and monotonic verdict thresholds.
+If any of these fail, the contracts have drifted from their intended shape.
 """
 
 from __future__ import annotations
@@ -72,7 +72,7 @@ class TestSignals:
         ["skills_match", "experience_match", "semantic_similarity", "llm_confidence"],
     )
     def test_signal_out_of_range_rejected(self, field):
-        """Architecture §6: all continuous signals are bounded to [0, 1]."""
+        """All continuous signals are bounded to [0, 1]."""
         payload = {
             "skills_match": 0.5,
             "experience_match": 0.5,
@@ -85,7 +85,7 @@ class TestSignals:
             Signals(**payload)
 
     def test_role_level_fit_must_be_discrete(self):
-        """Architecture §6: role_level_fit ∈ {0, 0.5, 1}."""
+        """role_level_fit ∈ {0, 0.5, 1}."""
         payload = {
             "skills_match": 0.5,
             "experience_match": 0.5,
@@ -120,7 +120,7 @@ class TestWeights:
         )
 
     def test_weights_sum_not_one_rejected(self):
-        """Architecture §6: weights MUST sum to 1.0. Any drift is an error."""
+        """Weights MUST sum to 1.0. Any drift is an error."""
         with pytest.raises(ValidationError, match="sum to 1.0"):
             Weights(skills=0.30, experience=0.20, semantic=0.15, llm=0.25, role=0.20)
 
@@ -146,7 +146,7 @@ class TestThresholds:
         assert t.version == "v1.0"
 
     def test_non_monotonic_thresholds_rejected(self):
-        """Architecture §6: review < apply < priority. Any other ordering is an error."""
+        """review < apply < priority. Any other ordering is an error."""
         with pytest.raises(ValidationError, match="review < apply < priority"):
             Thresholds(priority=60.0, **{"apply": 70.0}, review=50.0)
 
@@ -207,9 +207,10 @@ class TestDecisionTrace:
 
 
 def test_verdict_values_locked():
-    """The verdict set is locked. Adding/removing one is an ADR-level change.
+    """The verdict set is locked. Adding/removing one is a deliberate
+    change to the scoring contract.
 
-    Four fit-signal verdicts (architecture §6 thresholds): PRIORITY, APPLY,
+    Four fit-signal (threshold-derived) verdicts: PRIORITY, APPLY,
     REVIEW, SKIP. Plus one orthogonal input-quality verdict: PARSE_FAILURE
     (added under BUG-004 — distinct axis, no apply_score, semantic "N/A").
     """

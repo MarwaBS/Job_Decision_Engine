@@ -175,7 +175,7 @@ class TestFeedback:
 
 class TestPureIOInvariant:
     def test_persistence_module_does_not_import_scorer(self):
-        """Architecture / Step 4 rule: "Pure I/O layer only. NO logic."
+        """Pure I/O layer only — no logic.
 
         The persistence module must not import or call the scorer.
         """

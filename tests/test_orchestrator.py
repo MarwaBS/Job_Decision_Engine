@@ -20,7 +20,11 @@ from __future__ import annotations
 import pytest
 
 from src.db import InMemoryStore
-from src.engine.orchestrator import compute_role_level_fit, evaluate_job
+from src.engine.orchestrator import (
+    _check_dealbreakers,
+    compute_role_level_fit,
+    evaluate_job,
+)
 from src.llm.reasoning import FailingReasoner, MockReasoner
 from src.schemas import (
     CandidateProfile,
@@ -121,7 +125,7 @@ class TestHappyPath:
         assert store.count("decisions") == 1
 
 
-# ── LLM failure fallback (the architecture §7 contract) ──────────────────────
+# ── LLM failure fallback (the decision-still-ships contract) ─────────────────
 
 
 class TestLLMFailureFallback:
@@ -148,7 +152,7 @@ class TestLLMFailureFallback:
         assert d.signals.llm_confidence == 0.0
 
     def test_decision_still_persisted_when_llm_fails(self):
-        """Architecture §7: the decision ships even without the LLM."""
+        """The decision ships even without the LLM."""
         store = InMemoryStore()
         evaluate_job(
             STRONG_JD,
@@ -187,8 +191,8 @@ class TestLLMCannotOverrideVerdict:
     def test_dealbreaker_forces_skip_regardless_of_llm(self):
         """Even with an overconfident LLM, a dealbreaker must SKIP.
 
-        Architecture §6: hard filters fire BEFORE the weighted sum. The
-        LLM's `llm_confidence` is never evaluated in the hard-filter path.
+        Hard filters fire BEFORE the weighted sum. The LLM's
+        `llm_confidence` is never evaluated in the hard-filter path.
         """
         profile = _alex_rivera().model_copy(update={"dealbreakers": ["on_site_only"]})
         on_site_jd = """Title: Senior ML Engineer
@@ -281,6 +285,26 @@ Location: Remote
         )
         assert d.signals.dealbreaker_hit is False
 
+    def test_no_pytorch_fires_on_preferred_skill_not_just_required(self):
+        """Regression: the dealbreaker checked required_skills ONLY, so a JD listing
+        pytorch as a 'nice-to-have' (preferred_skills) slipped through. A dealbreaker
+        is a hard "no"; it must fire on either list. Built directly to control the
+        required/preferred split the parser would otherwise decide."""
+        profile = _alex_rivera().model_copy(update={"dealbreakers": ["no_pytorch"]})
+        job_preferred = ParsedJob(
+            title="ML Engineer",
+            required_skills=["python", "aws"],
+            preferred_skills=["pytorch"],
+        )
+        assert _check_dealbreakers(job_preferred, profile) is True
+        # Control: pytorch in neither list → does not fire.
+        job_neither = ParsedJob(
+            title="Data Engineer",
+            required_skills=["python", "sql"],
+            preferred_skills=["airflow"],
+        )
+        assert _check_dealbreakers(job_neither, profile) is False
+
 
 # ── compute_role_level_fit ───────────────────────────────────────────────────
 
@@ -314,7 +338,7 @@ class TestRoleLevelFit:
 class TestReproducibilityStamps:
     def test_decision_carries_version_stamps(self):
         """The decision written to Mongo carries the exact config it was
-        scored against (architecture §5.3 + Phase 10 contract)."""
+        scored against, so old decisions stay reproducible."""
         from src.config import ENGINE_VERSION, THRESHOLDS_VERSION, WEIGHTS
 
         store = InMemoryStore()
@@ -334,7 +358,7 @@ class TestReproducibilityStamps:
 
 
 class TestEmbeddingProviderRequired:
-    """Regression: HIGH #3 from Phase 2 audit (2026-05-28).
+    """Regression guard for a silent mock-embedding fallback.
 
     Before this fix, both `compute_semantic_similarity` and
     `evaluate_job` defaulted `embedding_provider=None` and silently

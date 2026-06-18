@@ -1,7 +1,7 @@
 """Smoke tests for the Streamlit presentation layer.
 
-Per Step 5 rule #1: the UI is a DUMB SHELL. It must not diverge from
-the tested pipeline. These tests prove that:
+The UI is a DUMB SHELL: it must not diverge from the tested pipeline.
+These tests prove that:
 
 1. The app module imports cleanly (no syntax / import-time errors).
 2. `detect_mode()` produces the expected 4 modes given all env-var combos.
@@ -150,8 +150,8 @@ class TestResolveProfile:
 
 
 class TestUIDoesNotRecomputeScores:
-    """Step 5 rule #1: UI must not recompute scores, re-interpret signals,
-    or introduce logic branches that diverge from tests."""
+    """UI must not recompute scores, re-interpret signals, or introduce
+    logic branches that diverge from tests."""
 
     def _app_source(self) -> str:
         return (Path(__file__).parent.parent / "streamlit_app" / "app.py").read_text(
@@ -231,8 +231,8 @@ class TestUIDoesNotRecomputeScores:
 
 
 class TestReadmeContract:
-    """Step 5 rule #4: README is a system contract document with exactly
-    5 content sections."""
+    """The README is a system contract document with a fixed set of
+    required content sections."""
 
     def _readme(self) -> str:
         return (Path(__file__).parent.parent / "README.md").read_text(encoding="utf-8")

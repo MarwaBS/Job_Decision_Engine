@@ -1,6 +1,6 @@
 """Orchestrator — glues parser + signals + LLM + scorer + persistence.
 
-Architecture §4. Single public entrypoint:
+Single public entrypoint:
 
     evaluate_job(raw_text, profile, *, store, reasoner, provider) -> DecisionResult
 
@@ -26,7 +26,7 @@ Order of operations:
 
 Step 6 happens BEFORE step 8 because the scorer needs `llm_confidence` as
 an input. The LLM's own confidence contributes at most 25% to the weighted
-sum (architecture §6 cap); it does not set the verdict.
+sum (its weight is capped); it does not set the verdict.
 """
 
 from __future__ import annotations
@@ -70,7 +70,7 @@ _SENIORITY_RANK: dict[Seniority, int] = {
 
 
 def compute_role_level_fit(job: ParsedJob, profile: CandidateProfile) -> float:
-    """Role-level match ∈ {0.0, 0.5, 1.0}. Architecture §6.
+    """Role-level match ∈ {0.0, 0.5, 1.0}.
 
     - 1.0: exact match (Senior candidate applying to Senior JD) or the JD
       is unlabelled (don't penalise — same rationale as experience match).
@@ -166,7 +166,7 @@ def evaluate_job(
         )
         llm_confidence = reasoning_obj.llm_confidence
     except LLMReasoningFailed:
-        # Architecture §7 contract: scoring continues without the LLM
+        # LLM-failure contract: scoring continues without the LLM
         # signal. Decision still ships.
         reasoning_obj = None
         llm_confidence = 0.0
@@ -224,7 +224,10 @@ def _check_dealbreakers(job: ParsedJob, profile: CandidateProfile) -> bool:
                                  penalise missing data" principle the
                                  experience and role-level signals follow.
         "no_pytorch"          — fires when the JD lists pytorch as a
-                                 required skill.
+                                 required OR preferred skill. A dealbreaker is a
+                                 hard "I won't do this"; a "nice-to-have" PyTorch
+                                 still means the role expects PyTorch, so checking
+                                 required_skills only silently let those through.
 
     Anything the function doesn't recognise is ignored (forward-compatible
     with future vocabulary expansion; `CandidateProfile` rejects unknown
@@ -239,7 +242,7 @@ def _check_dealbreakers(job: ParsedJob, profile: CandidateProfile) -> bool:
             if job.remote is False:
                 return True
         elif key == "no_pytorch":
-            if "pytorch" in job.required_skills:
+            if "pytorch" in job.required_skills or "pytorch" in job.preferred_skills:
                 return True
     return False
 

@@ -1,7 +1,6 @@
 """Persistence layer — pure I/O on top of the `Store` Protocol.
 
-Step 4 rules (authorization message, §4.2):
-    "Pure I/O layer only. NO logic transformation here."
+Pure I/O layer only — no logic transformation here.
 
 This module composes the primitive `Store` operations into the specific
 write patterns the orchestrator needs:
@@ -136,7 +135,7 @@ def persist_feedback(
     """Append a user-authored correction note.
 
     v1: logged only — never consumed by the scorer. The feedback loop
-    activates in v2 when N≥50 accumulate. See architecture §5.5.
+    activates in v2 when N≥50 accumulate.
     """
     feedback = FeedbackLog(
         decision_id=decision_id,

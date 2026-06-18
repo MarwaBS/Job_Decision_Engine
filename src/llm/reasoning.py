@@ -1,6 +1,6 @@
 """LLM reasoning — Protocol seam + OpenAI implementation + Mock for tests.
 
-Architecture §7. The LLM:
+The LLM:
 
 - Takes a (job, profile, signals) triple.
 - Returns a `ReasoningOutput` (strict JSON, Pydantic-validated).
@@ -32,7 +32,7 @@ from src.schemas import CandidateProfile, ParsedJob, ReasoningOutput, Signals
 class LLMReasoningFailed(RuntimeError):
     """Raised when the LLM layer cannot produce a valid `ReasoningOutput`.
 
-    Covers BOTH failure classes of architecture §7:
+    Covers BOTH failure classes of the reasoning layer:
     - schema failures: the retry-once-then-fail validation path exhausts;
     - transport failures: network errors, rate limits, timeouts — any
       `openai.OpenAIError` raised by the API call itself.
@@ -221,7 +221,7 @@ class OpenAIReasoner:
     def _ensure_client(self) -> Any:
         if self._client is None:
             try:
-                from openai import OpenAI  # noqa: WPS433
+                from openai import OpenAI  # lazy import: optional provider dep
             except ImportError as e:  # pragma: no cover
                 raise RuntimeError(
                     "openai SDK is not installed. Install from requirements.txt, "
@@ -282,7 +282,7 @@ class OpenAIReasoner:
         single catch keeps the "decision still ships" contract — a flaky
         network must never crash an evaluation."""
         client = self._ensure_client()
-        from openai import OpenAIError  # noqa: WPS433 — lazy, like the client
+        from openai import OpenAIError  # lazy import, like the client
 
         try:
             resp = client.chat.completions.create(
