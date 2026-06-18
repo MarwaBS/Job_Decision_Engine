@@ -233,7 +233,11 @@ def _extract_title(text: str, warnings: list[str]) -> tuple[str, bool]:
         # Skip body content that is not a title: a bullet/numbered list line is
         # a responsibility/requirement, not the role name. Taking the first such
         # line as the title (the old behaviour) mislabeled JDs that open with a
-        # "- Responsibilities" line.
+        # "- Responsibilities" line. Accepted tradeoff: a rare stylized title
+        # written as "- Senior Engineer -" is also skipped — the common bulleted-
+        # intro case is far more frequent and worth optimising for; this only
+        # affects the no-"Title:"-header fallback, which degrades to the next
+        # non-bullet line rather than failing.
         if _BULLET_OR_LIST_PREFIX.match(line):
             continue
         # Guardrail: a line longer than 140 chars is prose, not a title — keep a
