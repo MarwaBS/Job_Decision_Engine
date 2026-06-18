@@ -1,6 +1,6 @@
 """Seed the candidate profile from a local YAML file into MongoDB.
 
-Architecture §5.1 + Step 4 rule #4: YAML is the dev-only input artefact.
+YAML is the dev-only input artefact.
 MongoDB is the runtime state. The YAML file itself never reaches production
 logic — this script is the one-way gate between the two.
 

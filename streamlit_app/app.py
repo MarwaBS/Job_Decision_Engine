@@ -118,7 +118,7 @@ def detect_mode() -> RuntimeMode:
             label="Mongo-backed demo (no LLM)",
             banner_kind="warning",
             store_kind="MongoStore (Atlas) — decisions persisted across sessions",
-            reasoner_kind="LLM disabled — reasoning=None, llm_confidence=0.0 per architecture §7",
+            reasoner_kind="LLM disabled — reasoning=None, llm_confidence=0.0; decision still ships",
             embedding_kind=embedding_kind,
         )
     return RuntimeMode(
@@ -126,7 +126,7 @@ def detect_mode() -> RuntimeMode:
         label="Demo mode",
         banner_kind="warning",
         store_kind="InMemoryStore — session-only; restart loses decisions",
-        reasoner_kind="LLM disabled — reasoning=None, llm_confidence=0.0 per architecture §7",
+        reasoner_kind="LLM disabled — reasoning=None, llm_confidence=0.0; decision still ships",
         embedding_kind=embedding_kind,
     )
 
@@ -248,8 +248,8 @@ DEMO_PROFILE: CandidateProfile = CandidateProfile(
 
 In a real multi-tenant deployment this would be replaced by a per-user
 profile seeded via `scripts/seed_profile.py`. Kept inline (not in a
-separate module) to avoid expanding the architecture §4 module layout
-for a presentation-layer artefact.
+separate module) to avoid expanding the module layout for a
+presentation-layer artefact.
 """
 
 
@@ -409,8 +409,8 @@ def render_decision(decision: DecisionResult) -> None:
     if decision.reasoning is None:
         st.info(
             "No reasoning attached. The LLM was unavailable or its output "
-            "failed schema validation — per architecture §7, the decision "
-            "ships anyway with llm_confidence = 0.0."
+            "failed schema validation — the decision ships anyway with "
+            "llm_confidence = 0.0."
         )
     else:
         r = decision.reasoning

@@ -2,17 +2,17 @@
 
 This module is the single source of truth for:
 
-- Scoring weights (architecture §6)
-- Verdict thresholds (architecture §6)
+- Scoring weights
+- Verdict thresholds
 - Engine version
-- Near-threshold distance cutoff (architecture §5.3)
+- Near-threshold distance cutoff
 
-Values here are **priors**, not learned parameters. Changing any of them
-requires:
+Values here are **priors**, not learned parameters. Changing any of them is a
+deliberate change-control action:
 
-1. An ADR in `docs/decisions/ADR-XXX-<slug>.md`
-2. A bump to WEIGHTS_VERSION or THRESHOLDS_VERSION
-3. An entry in `MEMORY/DECISION_TRACE_LOG.md`
+1. Bump the matching version constant (WEIGHTS_VERSION or THRESHOLDS_VERSION)
+   so existing decisions stay reproducible against the values they used.
+2. Record the rationale for the new numbers alongside the change.
 
 Immutability is enforced at runtime: the exported objects are `frozen`
 Pydantic models, so any attempt to reassign a field raises `ValidationError`.
@@ -36,11 +36,10 @@ WEIGHTS_VERSION: str = "v1.0"
 THRESHOLDS_VERSION: str = "v1.0"
 
 
-# ── Scoring weights (architecture §6, priors — not learned) ──────────────────
+# ── Scoring weights (priors — not learned) ───────────────────────────────────
 #
-# Rationale per weight lives in the architecture, not here. The only comment
-# allowed in this file is: these numbers came from design intent. They will be
-# retuned only when the evaluation framework has N≥50 real outcomes.
+# These numbers came from design intent, not from fitting. They will be retuned
+# only when the evaluation framework has N≥50 real outcomes.
 
 WEIGHTS: Weights = Weights(
     skills=0.30,
@@ -51,7 +50,7 @@ WEIGHTS: Weights = Weights(
 )
 
 
-# ── Verdict thresholds (architecture §6) ─────────────────────────────────────
+# ── Verdict thresholds ───────────────────────────────────────────────────────
 
 THRESHOLDS: Thresholds = Thresholds(
     priority=80.0,
@@ -61,7 +60,7 @@ THRESHOLDS: Thresholds = Thresholds(
 )
 
 
-# ── Near-threshold distance (architecture §5.3) ──────────────────────────────
+# ── Near-threshold distance ──────────────────────────────────────────────────
 
 NEAR_THRESHOLD_DISTANCE: float = 3.0
 """Absolute score distance within which `near_threshold_flag` fires.
@@ -72,10 +71,10 @@ verdict itself.
 """
 
 
-# ── Hard-filter thresholds (architecture §6) ─────────────────────────────────
+# ── Hard-filter thresholds ───────────────────────────────────────────────────
 
 MIN_PARSE_CONFIDENCE: float = 0.5
 """If `Signals.parse_confidence < MIN_PARSE_CONFIDENCE`, the scorer
 short-circuits to the PARSE_FAILURE verdict with `apply_score=None` —
-the score is undefined when the JD could not be parsed (BUG-004). See
-architecture §6, "Hard filters"."""
+the score is undefined when the JD could not be parsed (BUG-004). This is
+one of the scorer's hard filters, applied before the weighted sum."""

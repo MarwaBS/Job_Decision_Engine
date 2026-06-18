@@ -1,7 +1,7 @@
 """Semantic similarity signal — `sentence-transformers` with a Protocol seam.
 
-Architecture §3: REAL, using `sentence-transformers/all-MiniLM-L6-v2`. §6:
-weight W_semantic = 0.15.
+A REAL signal, using `sentence-transformers/all-MiniLM-L6-v2`.
+Weight W_semantic = 0.15.
 
 Design — Protocol-based embedding provider:
 

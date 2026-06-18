@@ -1,6 +1,6 @@
 """LLM reasoning — Protocol seam + OpenAI implementation + Mock for tests.
 
-Architecture §7. The LLM:
+The LLM:
 
 - Takes a (job, profile, signals) triple.
 - Returns a `ReasoningOutput` (strict JSON, Pydantic-validated).
@@ -32,7 +32,7 @@ from src.schemas import CandidateProfile, ParsedJob, ReasoningOutput, Signals
 class LLMReasoningFailed(RuntimeError):
     """Raised when the LLM layer cannot produce a valid `ReasoningOutput`.
 
-    Covers BOTH failure classes of architecture §7:
+    Covers BOTH failure classes of the reasoning layer:
     - schema failures: the retry-once-then-fail validation path exhausts;
     - transport failures: network errors, rate limits, timeouts — any
       `openai.OpenAIError` raised by the API call itself.

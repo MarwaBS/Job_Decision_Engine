@@ -114,7 +114,7 @@ class TestFailingReasoner:
 
 
 class TestReasoningOutputSchema:
-    """Architecture §7 bounds. If these break, the LLM retry-or-fail
+    """ReasoningOutput bounds. If these break, the LLM retry-or-fail
     contract can't tell good output from bad."""
 
     VALID_PAYLOAD: dict = {
@@ -214,8 +214,8 @@ class TestTransportFailures:
 
     Regression guard: only schema violations used to be wrapped, so an
     `openai.APIConnectionError` propagated straight through `evaluate_job`
-    and crashed the evaluation, contradicting the README §5 claim that the
-    decision ships with reasoning=None on LLM failure.
+    and crashed the evaluation, contradicting the documented contract that
+    the decision ships with reasoning=None on LLM failure.
 
     `openai` is a pinned runtime dependency (requirements.txt) and is
     installed in CI; these tests stay hermetic — the fake client raises

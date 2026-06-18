@@ -1,8 +1,8 @@
 """Tests for `src.config`.
 
 Config is the locked source of truth for weights and thresholds. These tests
-verify that the values ON DISK match architecture §6 exactly, and that the
-objects are runtime-immutable.
+verify that the values ON DISK match the intended design exactly, and that
+the objects are runtime-immutable.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from src.config import (
 
 class TestWeights:
     def test_weights_match_architecture_section_6(self):
-        """Architecture §6 table — each value is defensible per-row."""
+        """The scoring-weight table — each value is defensible per-row."""
         assert WEIGHTS.skills == 0.30
         assert WEIGHTS.experience == 0.20
         assert WEIGHTS.semantic == 0.15
@@ -41,7 +41,7 @@ class TestWeights:
         assert total == pytest.approx(1.0)
 
     def test_llm_weight_not_dominant(self):
-        """Architecture Phase 4: LLM cannot single-handedly flip a decision.
+        """The LLM cannot single-handedly flip a decision.
 
         Operationalised here as: LLM weight must be strictly less than the
         sum of the two largest deterministic signals (skills + experience).

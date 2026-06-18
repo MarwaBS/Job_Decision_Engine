@@ -113,8 +113,7 @@ class TestSemanticSimilarity:
         """Regression: removing the silent-mock-fallback default means
         calling without `provider=` raises TypeError. This is the
         guardrail against any future production caller accidentally
-        getting hash-based mock embeddings instead of real ones.
-        See HIGH #3 / Phase 2 audit (2026-05-28)."""
+        getting hash-based mock embeddings instead of real ones."""
         with pytest.raises(TypeError):
             compute_semantic_similarity(_job(), _profile("x"))  # type: ignore[call-arg]
 

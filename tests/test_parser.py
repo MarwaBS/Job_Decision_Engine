@@ -338,9 +338,8 @@ class TestPathologicalWhitespace:
 
 class TestPurity:
     def test_parser_does_not_import_network_modules(self):
-        """Architecture §3: parser is pure — text in, structure out.
-        Any future ingestion I/O (scraping, uploads) belongs in its own
-        module, never here."""
+        """Parser is pure — text in, structure out. Any future ingestion
+        I/O (scraping, uploads) belongs in its own module, never here."""
         from pathlib import Path
 
         src = (

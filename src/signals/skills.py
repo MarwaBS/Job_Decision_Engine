@@ -1,6 +1,6 @@
 """Skills signal — taxonomy + extraction + match score.
 
-Architecture §3: REAL. The extraction is taxonomy-based regex matching
+A REAL signal. The extraction is taxonomy-based regex matching
 (fast, deterministic, offline). spaCy NER is an optional enhancer that can
 be plugged in later via `extract_skills(text, enhance=True)`; the v1 default
 is pure-regex so the system remains fully testable without a spaCy model
@@ -30,9 +30,9 @@ from src.schemas import CandidateProfile, ParsedJob
 
 # ── Taxonomy ─────────────────────────────────────────────────────────────────
 #
-# Hand-curated. Expansion requires a DECISION_TRACE_LOG entry, not an ADR
-# (taxonomy growth is expected implementation work, not an architecture
-# change). Every skill appears in exactly one bucket.
+# Hand-curated. Expanding the taxonomy is expected implementation work (it
+# grows as new skills appear), not a change to the scoring contract. Every
+# skill appears in exactly one bucket.
 #
 # Each entry is a (canonical_name, aliases) tuple. Aliases are regex
 # fragments; boundary anchoring is applied centrally at compile time (see

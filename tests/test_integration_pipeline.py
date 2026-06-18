@@ -200,7 +200,7 @@ class TestWeakMatchEndToEnd:
 
 class TestPipelineReproducibility:
     def test_same_input_produces_same_result(self):
-        """Architecture Phase 10: consistent decisions on consistent inputs."""
+        """Consistent decisions on consistent inputs."""
         profile = _alex_rivera_profile()
         r1 = score(
             _build_signals(STRONG_JD, profile, llm_confidence=0.7, role_level_fit=1.0)

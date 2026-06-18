@@ -1,18 +1,18 @@
 """MongoDB layer — connection abstraction + collection accessors.
 
-Architecture §4, §5. This module is the ONLY place in the project that
-talks to pymongo. All higher layers depend on the `Store` Protocol, never
-on pymongo directly. That keeps:
+This module is the ONLY place in the project that talks to pymongo. All
+higher layers depend on the `Store` Protocol, never on pymongo directly.
+That keeps:
 
 - the scorer and orchestrator pure-testable
 - schema + persistence changes localised
 - tests hermetic (use `InMemoryStore`)
 
-Non-business-logic by design. Per Step 4 rules: "connection abstraction
-+ collection accessors, no business logic". A method here either reads
-from Mongo or writes to Mongo, nothing more.
+Non-business-logic by design: this layer is connection abstraction plus
+collection accessors only. A method here either reads from Mongo or writes
+to Mongo, nothing more.
 
-Append-only contract (locked per DT-010):
+Append-only contract:
 
 - `decisions` — `insert_decision` only. No update, no replace, no delete.
 - `outcomes` — `insert_outcome` OR `push_outcome_stage` / `set_outcome_final_stage`
@@ -170,7 +170,7 @@ class InMemoryStore:
         """Append a stage to an existing outcome document.
 
         `stages[]` is strictly growing — no reorder, no removal. This is
-        the only form of "outcome mutation" allowed (see DT-010).
+        the only form of "outcome mutation" allowed.
         """
         doc = self._find_outcome_by_decision_id(decision_id)
         doc["stages"].append(stage.model_dump(mode="json"))

@@ -243,7 +243,8 @@ class TestSkillsMatch:
         assert compute_skills_match(job, profile) == 0.0
 
     def test_empty_job_skills_returns_zero(self):
-        """Architecture §6 hard filter: parser's parse_confidence catches this."""
+        """Empty job skills score zero; the parser's parse_confidence hard
+        filter catches the unparseable case upstream."""
         job = ParsedJob(title="ML Eng", required_skills=[], preferred_skills=[])
         profile = _profile(skills_tech=["python"])
         assert compute_skills_match(job, profile) == 0.0

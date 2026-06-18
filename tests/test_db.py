@@ -4,8 +4,7 @@ All tests run against `InMemoryStore`. `MongoStore` is exercised by a
 separate integration smoke test that is NOT part of the hermetic suite
 (it needs a real Mongo URI).
 
-The append-only contract (architecture §5 + DT-010) is the headline
-behaviour verified here:
+The append-only contract is the headline behaviour verified here:
 
 - `decisions` never updated after insert
 - `outcomes` can only grow their `stages[]` and close their `final_stage`

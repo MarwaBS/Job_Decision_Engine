@@ -60,7 +60,7 @@ class TestExperienceMatch:
         assert got == pytest.approx(expected, abs=1e-9)
 
     def test_signal_is_bounded_zero_to_one(self):
-        """Architecture §6: experience_match ∈ [0, 1]."""
+        """experience_match ∈ [0, 1]."""
         for have in (0, 0.5, 2, 5, 10, 100):
             for req in (1, 5, 10, 20):
                 got = compute_experience_match(_job(req), _profile(have))

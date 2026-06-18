@@ -1,13 +1,13 @@
 """Tests for the deterministic scoring function.
 
 These are the interview-defensive tests. Every test maps to a concrete
-architecture claim:
+correctness claim:
 
-- determinism (architecture §11 Phase 10 criterion: "reproducible output")
-- weighted-sum correctness (architecture §6)
-- hard filter short-circuits (architecture §6, "Hard filters")
-- verdict mapping across all threshold boundaries (architecture §6)
-- decision_trace correctness (architecture §5.3)
+- determinism: same inputs produce reproducible output
+- weighted-sum correctness
+- hard filter short-circuits
+- verdict mapping across all threshold boundaries
+- decision_trace correctness
 - purity: scorer imports no I/O modules
 """
 
@@ -19,7 +19,7 @@ from src.config import THRESHOLDS, WEIGHTS
 from src.engine.scorer import score
 from src.schemas import FailureMode, Signals, Thresholds, Verdict, Weights
 
-# ── Test fixtures (fixed inputs per EXECUTION_RULES §7) ──────────────────────
+# ── Test fixtures (fixed inputs for reproducibility) ─────────────────────────
 
 
 def _strong_signals(**overrides) -> Signals:
@@ -118,7 +118,7 @@ class TestWeightedSum:
         assert r.apply_score == pytest.approx(100.0, abs=1e-9)
 
 
-# ── Hard filters (architecture §6 subsection) ────────────────────────────────
+# ── Hard filters ─────────────────────────────────────────────────────────────
 
 
 class TestHardFilters:
@@ -186,11 +186,11 @@ class TestHardFilters:
         assert r.apply_score is None
 
 
-# ── Verdict boundaries (architecture §6) ─────────────────────────────────────
+# ── Verdict boundaries ───────────────────────────────────────────────────────
 
 
 class TestVerdictBoundaries:
-    """Exercises every threshold transition in architecture §6 with fixed signals.
+    """Exercises every threshold transition with fixed signals.
 
     Instead of constructing signals to hit a target score (which hits float
     drift at boundary values like 65.0 = 0.6666... × 0.90 + 0.05), these tests
@@ -313,7 +313,7 @@ class TestVerdictBoundaries:
     def test_boundary_exact_priority_uses_gte(self):
         """Score EXACTLY on the priority boundary (80.0) → PRIORITY.
 
-        Architecture §6: score >= priority → PRIORITY.
+        score >= priority → PRIORITY.
         Constructs a score of exactly 80.0 by design: all signals 0.8, role 0.0.
         100 * (0.30*0.8 + 0.20*0.8 + 0.15*0.8 + 0.25*0.8 + 0.10*0.0)
           = 100 * 0.8 * 0.90 = 72.0 — nope, not 80.
@@ -364,7 +364,7 @@ class TestVerdictBoundaries:
         assert r.verdict == Verdict.APPLY
 
 
-# ── Decision trace (architecture §5.3) ───────────────────────────────────────
+# ── Decision trace ───────────────────────────────────────────────────────────
 
 
 class TestDecisionTrace:
@@ -493,7 +493,7 @@ class TestReproducibilityMetadata:
 
 class TestEnginePurity:
     def test_scorer_does_not_import_db_or_llm_or_http(self):
-        """EXECUTION_RULES §7 + architecture §11: engine/scorer is pure.
+        """engine/scorer is pure.
 
         This test reads the source and greps for forbidden imports. It is
         the architectural equivalent of a coverage gate.
@@ -518,6 +518,5 @@ class TestEnginePurity:
         ]
         for needle in forbidden:
             assert needle not in scorer_src, (
-                f"scorer.py imports I/O module ({needle!r}). "
-                "Architecture §11: engine must be pure."
+                f"scorer.py imports I/O module ({needle!r}). The engine must be pure."
             )

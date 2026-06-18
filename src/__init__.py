@@ -1,6 +1,8 @@
 """Job Decision Engine — v1.
 
-See docs/ARCHITECTURE.md for the design. See EXECUTION_RULES.md for operating rules.
+Scores a (job description, candidate profile) pair into an explainable
+apply/skip decision via a deterministic weighted-signal scorer with a
+bounded LLM reasoning layer.
 """
 
 __version__ = "0.2.0"

@@ -1,6 +1,6 @@
 """Job-description parser.
 
-Architecture §5.2: produces a `Job` with a `parsed: ParsedJob` payload, a
+Produces a `Job` with a `parsed: ParsedJob` payload, a
 content hash (SHA-256 of the normalised raw text), a `parse_confidence`
 score in [0, 1], and a list of `parse_warnings`.
 

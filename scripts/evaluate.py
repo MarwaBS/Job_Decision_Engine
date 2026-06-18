@@ -1,16 +1,13 @@
 """Evaluation script — STUB-enforced until N≥50 real outcomes.
 
-Step 4 rule #3 (non-negotiable):
-    "Until N >= 50 real outcomes:
-     - NO fake metrics
-     - NO simulated outcomes
-     - NO synthetic 'performance reporting'
-     It is intentionally inert."
+Integrity rule (non-negotiable): until N >= 50 real outcomes, there are
+NO fake metrics, NO simulated outcomes, and NO synthetic "performance
+reporting" — the script is intentionally inert.
 
-Architecture §8: the framework is built; the metrics are only computed
-when enough real data exists. This is the integrity claim of the whole
-project — simulating feedback data to show a "working" evaluation would
-be worse than no evaluation.
+The framework is built; the metrics are only computed when enough real
+data exists. This is the integrity claim of the whole project — simulating
+feedback data to show a "working" evaluation would be worse than no
+evaluation.
 
 Usage:
     python -m scripts.evaluate         # reads from Mongo, returns STUB if N<50
@@ -28,9 +25,8 @@ from src.db import MongoStore, Store
 MIN_OUTCOMES_FOR_EVALUATION: int = 50
 """Hard gate. Below this, the script MUST return the STUB message.
 
-Matches architecture §8 and the Step 4 rule. Intentionally locked at the
-module level (not in config.py) so it's harder to "temporarily tweak" when
-the temptation hits at N=47.
+Intentionally locked at the module level (not in config.py) so it's harder
+to "temporarily tweak" when the temptation hits at N=47.
 """
 
 
@@ -84,7 +80,7 @@ def evaluate(store: Store) -> EvaluationResult:
             ),
         )
 
-    # N >= 50. Compute the real metrics documented in architecture §8.
+    # N >= 50. Compute the real outcome metrics.
     metrics = _compute_metrics(outcomes, store)
     return EvaluationResult(
         n_outcomes=n,
@@ -103,7 +99,7 @@ def evaluate(store: Store) -> EvaluationResult:
 
 
 def _compute_metrics(outcomes: list[dict[str, Any]], store: Store) -> dict[str, float]:
-    """Compute the architecture §8 metric set.
+    """Compute the outcome metric set.
 
     - precision_apply: (callbacks + interviews + offers) / applications
     - precision_priority: same, filtered to verdict=PRIORITY decisions

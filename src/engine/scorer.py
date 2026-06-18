@@ -1,7 +1,7 @@
 """Deterministic scoring function for the Job Decision Engine.
 
-Implements architecture §6 exactly. Pure function: same (signals, weights,
-thresholds) → same (score, verdict, decision_trace), always.
+Pure function: same (signals, weights, thresholds) → same
+(score, verdict, decision_trace), always.
 
 This is the only module in the system that can claim "provably deterministic".
 It has no imports from `db`, `llm`, or any I/O layer, by design. If that ever
@@ -40,7 +40,7 @@ def score(
     """Score a (Job, Profile) signal vector into a verdict.
 
     Args:
-        signals: Five-signal vector + hard-filter inputs. Architecture §6.
+        signals: Five-signal vector + hard-filter inputs.
         weights: Scoring weights. Defaults to the locked v1.0 priors.
         thresholds: Score cutoffs. Defaults to the locked v1.0 thresholds.
 
@@ -51,7 +51,6 @@ def score(
     test with any Signals instance and get a reproducible result.
     """
     # ── Hard filters (applied BEFORE the weighted sum) ───────────────────────
-    # Architecture §6: "Hard filters" subsection.
     #
     # Order matters: input quality is checked FIRST. A dealbreaker inferred
     # from a JD we could not reliably parse is itself unreliable — firing it
@@ -83,7 +82,7 @@ def score(
             failure_mode=FailureMode.DEALBREAKER_HIT,
         )
 
-    # ── Weighted sum (architecture §6) ───────────────────────────────────────
+    # ── Weighted sum ─────────────────────────────────────────────────────────
 
     weighted = _weighted_contributions(signals, weights)
     apply_score = 100.0 * sum(weighted.values())
@@ -92,7 +91,7 @@ def score(
 
     verdict = _score_to_verdict(apply_score, thresholds)
 
-    # ── Decision trace (architecture §5.3) ───────────────────────────────────
+    # ── Decision trace ───────────────────────────────────────────────────────
 
     dominant = _dominant_signal(weighted)
     sensitivity = _compute_sensitivity(signals, weights)
@@ -159,7 +158,7 @@ def _dominant_signal(weighted: dict[str, float]) -> DominantSignal:
 def _score_to_verdict(apply_score: float, thresholds: Thresholds) -> Verdict:
     """Map apply_score ∈ [0, 100] to a Verdict.
 
-    Architecture §6:
+    Verdict bands:
         score >= priority → PRIORITY
         apply <= score < priority → APPLY
         review <= score < apply   → REVIEW
@@ -206,8 +205,8 @@ def _compute_sensitivity(signals: Signals, weights: Weights) -> DecisionSensitiv
 def _nearest_threshold_distance(apply_score: float, thresholds: Thresholds) -> float:
     """Absolute distance from the score to the nearest verdict boundary.
 
-    Architecture §5.3: a small distance means the decision is borderline and
-    should be reviewed. The three boundaries are `priority`, `apply`, `review`.
+    A small distance means the decision is borderline and should be reviewed.
+    The three boundaries are `priority`, `apply`, `review`.
     """
     boundaries = (thresholds.priority, thresholds.apply_, thresholds.review)
     return min(abs(apply_score - b) for b in boundaries)

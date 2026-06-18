@@ -125,7 +125,7 @@ class TestHappyPath:
         assert store.count("decisions") == 1
 
 
-# ── LLM failure fallback (the architecture §7 contract) ──────────────────────
+# ── LLM failure fallback (the decision-still-ships contract) ─────────────────
 
 
 class TestLLMFailureFallback:
@@ -152,7 +152,7 @@ class TestLLMFailureFallback:
         assert d.signals.llm_confidence == 0.0
 
     def test_decision_still_persisted_when_llm_fails(self):
-        """Architecture §7: the decision ships even without the LLM."""
+        """The decision ships even without the LLM."""
         store = InMemoryStore()
         evaluate_job(
             STRONG_JD,
@@ -191,8 +191,8 @@ class TestLLMCannotOverrideVerdict:
     def test_dealbreaker_forces_skip_regardless_of_llm(self):
         """Even with an overconfident LLM, a dealbreaker must SKIP.
 
-        Architecture §6: hard filters fire BEFORE the weighted sum. The
-        LLM's `llm_confidence` is never evaluated in the hard-filter path.
+        Hard filters fire BEFORE the weighted sum. The LLM's
+        `llm_confidence` is never evaluated in the hard-filter path.
         """
         profile = _alex_rivera().model_copy(update={"dealbreakers": ["on_site_only"]})
         on_site_jd = """Title: Senior ML Engineer
@@ -338,7 +338,7 @@ class TestRoleLevelFit:
 class TestReproducibilityStamps:
     def test_decision_carries_version_stamps(self):
         """The decision written to Mongo carries the exact config it was
-        scored against (architecture §5.3 + Phase 10 contract)."""
+        scored against, so old decisions stay reproducible."""
         from src.config import ENGINE_VERSION, THRESHOLDS_VERSION, WEIGHTS
 
         store = InMemoryStore()
@@ -358,7 +358,7 @@ class TestReproducibilityStamps:
 
 
 class TestEmbeddingProviderRequired:
-    """Regression: HIGH #3 from Phase 2 audit (2026-05-28).
+    """Regression guard for a silent mock-embedding fallback.
 
     Before this fix, both `compute_semantic_similarity` and
     `evaluate_job` defaulted `embedding_provider=None` and silently

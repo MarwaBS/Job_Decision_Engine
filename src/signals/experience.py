@@ -1,6 +1,6 @@
 """Experience-match signal — pure function.
 
-Architecture §3: REAL. §6: weight W_experience = 0.20.
+A REAL signal. Weight W_experience = 0.20.
 
 Returns a float in [0, 1] representing how well the candidate's years of
 experience match what the job requires.
