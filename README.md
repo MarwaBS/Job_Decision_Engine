@@ -11,6 +11,12 @@ license: mit
 
 # Job Decision Engine
 
+[![CI](https://github.com/MarwaBS/Job_Decision_Engine/actions/workflows/ci.yml/badge.svg)](https://github.com/MarwaBS/Job_Decision_Engine/actions/workflows/ci.yml)
+![Tests](https://img.shields.io/badge/tests-300%2B%20passing-brightgreen)
+![Determinism](https://img.shields.io/badge/determinism-verified%201e--9-blue)
+![License](https://img.shields.io/badge/license-MIT-blue)
+[![Live demo](https://img.shields.io/badge/demo-Hugging%20Face-yellow?logo=huggingface&logoColor=white)](https://huggingface.co/spaces/MarwaBS/job-decision-engine)
+
 A deterministic decision system I built to triage real job descriptions
 during my own active job search. The verdict comes from an explicit
 weighted formula; the LLM only **explains** the decision — it never
@@ -21,6 +27,37 @@ can re-derive any past verdict from the stored data.
 > `sentence-transformers/all-MiniLM-L6-v2` model (~400 MB) and builds the
 > Docker image. Allow 5–10 minutes on the very first visit. Subsequent
 > boots are near-instant.
+
+---
+
+## TL;DR
+
+**What:** A deterministic engine that triages job descriptions into **PRIORITY / APPLY / REVIEW / SKIP**. The verdict comes from an explicit weighted formula; an LLM only *explains* it — it never decides it.
+
+**Why it's built this way:** same JD + same profile → same verdict, every time (verified to `1e-9`), and every decision is logged with its exact signals + weights so any past verdict can be re-derived. No black-box "AI tool" that answers differently each run.
+
+```mermaid
+flowchart LR
+  UI["Streamlit UI<br/>(presentation only)"] --> ORC["Orchestrator<br/>evaluate_job()"]
+  ORC --> P["Parser<br/>parse-confidence gate"]
+  ORC --> SIG["Signals<br/>skills · experience<br/>semantic · role"]
+  ORC --> LLM["LLM reasoning<br/>bounded ≤25 pts · explains only"]
+  P --> SC["Scorer<br/>pure · deterministic to 1e-9"]
+  SIG --> SC
+  LLM --> SC
+  SC --> V["Verdict<br/>PRIORITY / APPLY / REVIEW / SKIP"]
+  SC --> DB[("Append-only<br/>audit log")]
+```
+
+| Verdict | Band | What I do |
+|---|---|---|
+| **PRIORITY** | ≥ 80 | Apply same day |
+| **APPLY** | 65–80 | Apply this week |
+| **REVIEW** | 50–65 | Read manually — the engine isn't confident either way |
+| **SKIP** | < 50 | Trust it, move on |
+| **PARSE_FAILURE** | n/a | JD unparseable (`score = None`, not "0% match") |
+
+**See it:** [live demo](https://huggingface.co/spaces/MarwaBS/job-decision-engine) · **Run it:** `python -m scripts.demo_example` · **How it works:** [system design](#3-system-design) · [the decision formula](#4-the-decision-formula)
 
 ---
 
