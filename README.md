@@ -61,7 +61,7 @@ flowchart LR
 
 ![The Job Decision Engine demo scoring a Senior ML Engineer JD: a 71.2/100 APPLY verdict with the per-signal breakdown and weights shown below it.](https://raw.githubusercontent.com/MarwaBS/Job_Decision_Engine/main/assets/demo-apply-verdict.png)
 
-*The public demo (no API key) scoring a sample JD: an explicit `71.2 / 100 → APPLY` verdict, the boot-time mode banner, and — further down — the per-signal table, decision trace, and counterfactual replays. The LLM panel reads "disabled" here, which is the point: the verdict ships from the deterministic formula alone, and the LLM only ever explains it.*
+*The public demo (no API key) scoring a sample JD: an explicit `71.2 / 100 → APPLY` verdict, the boot-time mode banner, and — further down — the per-signal table, decision trace, and counterfactual replays. (This is a different sample than the reproducible **Example B** below, so its score differs slightly.) The LLM panel reads "disabled" here, which is the point: the verdict ships from the deterministic formula alone, and the LLM only ever explains it.*
 
 ---
 
