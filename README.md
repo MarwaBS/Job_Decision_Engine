@@ -9,6 +9,21 @@ pinned: false
 license: mit
 ---
 
+## What this is
+
+A deterministic job-offer scoring engine. Same input → same output, every time.
+
+Reproducibility verified to 1e-9 across local, CI, and HuggingFace Spaces.
+
+**[Live demo](https://huggingface.co/spaces/MarwaBS/job-decision-engine)**
+
+Why determinism matters: LLMs are non-deterministic by default. For decisions that affect someone's career, that's not acceptable.
+
+Stack: Pydantic v2 · sentence-transformers · OpenAI · MongoDB · Docker · GitHub Actions
+
+---
+
+
 # Job Decision Engine
 
 [![CI](https://github.com/MarwaBS/Job_Decision_Engine/actions/workflows/ci.yml/badge.svg)](https://github.com/MarwaBS/Job_Decision_Engine/actions/workflows/ci.yml)
