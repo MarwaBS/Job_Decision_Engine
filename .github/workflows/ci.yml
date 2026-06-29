@@ -155,7 +155,10 @@ jobs:
           # the HF mirror carries everything required to build the Docker Space.
           # --force is deliberate: the Space is a deployed mirror, not a dev line.
           git checkout --orphan hf-mirror
-          git rm -r --cached --quiet assets
+          # --ignore-unmatch keeps the deploy idempotent: if assets/ is ever
+          # removed or renamed, `git rm` would otherwise exit 128 and (under
+          # set -euo pipefail) break every deploy. Nothing-to-exclude is fine.
+          git rm -r --cached --quiet --ignore-unmatch assets
           git commit --quiet -m "Deploy ${GITHUB_SHA} — HF runtime mirror (assets/ excluded)"
           git push --force hf hf-mirror:main
           echo "✓ Deployed to https://huggingface.co/spaces/${HF_OWNER}/${HF_SPACE_NAME}"
