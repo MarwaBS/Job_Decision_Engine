@@ -244,13 +244,18 @@ DEMO_PROFILE: CandidateProfile = CandidateProfile(
     dealbreakers=[],
     active=True,
 )
-"""The bundled demo profile for the public HF Space.
-
-In a real multi-tenant deployment this would be replaced by a per-user
-profile seeded via `scripts/seed_profile.py`. Kept inline (not in a
-separate module) to avoid expanding the module layout for a
-presentation-layer artefact.
-"""
+# The bundled demo profile for the public HF Space.
+#
+# NOTE: this MUST stay a `#` comment, not a triple-quoted "attribute
+# docstring". A bare string expression here is rendered into the live UI by
+# Streamlit's "magic" (top-level expressions are displayed), which once
+# leaked this commentary onto the page above the title. Guarded by
+# tests/test_streamlit_app.py::test_no_stray_module_level_strings_leak_to_ui.
+#
+# In a real multi-tenant deployment this would be replaced by a per-user
+# profile seeded via `scripts/seed_profile.py`. Kept inline (not in a
+# separate module) to avoid expanding the module layout for a
+# presentation-layer artefact.
 
 
 def resolve_profile(store: Store) -> tuple[CandidateProfile, bool]:
