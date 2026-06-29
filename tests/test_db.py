@@ -280,3 +280,70 @@ class TestDiagnostics:
         store = InMemoryStore()
         for c in ("profiles", "jobs", "decisions", "outcomes", "feedback_logs"):
             assert store.count(c) == 0
+
+
+# ── MongoStore boot-time connection check ────────────────────────────────────
+
+
+class TestMongoStoreConnectionCheck:
+    """`MongoStore.__init__` must VERIFY the connection (ping), not just
+    construct a lazy `MongoClient`.
+
+    pymongo's `MongoClient` connects lazily, so an unreachable Atlas (paused
+    free-tier cluster, Space egress IP not allow-listed, stale `MONGODB_URI`)
+    otherwise sails through construction and only fails at the FIRST query.
+    In the Streamlit app that produced a self-contradicting screen: a green
+    "Production / MongoStore (Atlas) — decisions persisted across sessions"
+    banner shown next to a "Profile lookup failed — the store raised" warning,
+    because `streamlit_app.app._build_store`'s `except RuntimeError ->
+    InMemoryStore` degradation never fired (the lazy client raised nothing at
+    boot). Pinging during construction turns a dead connection into the
+    `RuntimeError` the app already knows how to degrade on — so the UI honestly
+    shows "persistence degraded" instead of claiming Atlas it doesn't have.
+
+    These tests inject a fake client (no real Mongo) by patching the
+    `pymongo.MongoClient` symbol that `MongoStore.__init__` imports at call
+    time; pymongo itself is only needed for its real error type.
+    """
+
+    def test_unreachable_mongo_raises_runtimeerror_at_construction(self, monkeypatch):
+        pymongo = pytest.importorskip("pymongo")
+        from pymongo.errors import ServerSelectionTimeoutError
+
+        class _DeadClient:
+            def __init__(self, *args, **kwargs):
+                self.admin = self  # so `.admin.command(...)` resolves here
+
+            def command(self, *args, **kwargs):
+                raise ServerSelectionTimeoutError("no reachable servers")
+
+            def __getitem__(self, name):
+                return object()
+
+        monkeypatch.setattr(pymongo, "MongoClient", _DeadClient)
+        from src.db import MongoStore
+
+        # Today this passes silently (lazy connect, no ping) — the bug.
+        # After the fix the failed ping is re-raised as RuntimeError, the
+        # exact type `_build_store` catches to fall back to InMemoryStore.
+        with pytest.raises(RuntimeError):
+            MongoStore(uri="mongodb://unreachable.invalid:27017")
+
+    def test_reachable_mongo_constructs_without_error(self, monkeypatch):
+        pymongo = pytest.importorskip("pymongo")
+
+        class _LiveClient:
+            def __init__(self, *args, **kwargs):
+                self.admin = self
+
+            def command(self, *args, **kwargs):
+                return {"ok": 1.0}  # healthy ping
+
+            def __getitem__(self, name):
+                return object()
+
+        monkeypatch.setattr(pymongo, "MongoClient", _LiveClient)
+        from src.db import MongoStore
+
+        # A healthy ping must NOT raise — the live Atlas path is unaffected.
+        MongoStore(uri="mongodb://reachable.example:27017")
