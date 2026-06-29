@@ -59,6 +59,10 @@ flowchart LR
 
 **See it:** [live demo](https://huggingface.co/spaces/MarwaBS/job-decision-engine) · **Run it:** `python -m scripts.demo_example` · **How it works:** [system design](#3-system-design) · [the decision formula](#4-the-decision-formula)
 
+![The Job Decision Engine demo scoring a Senior ML Engineer JD: a 71.2/100 APPLY verdict with the per-signal breakdown and weights shown below it.](assets/demo-apply-verdict.png)
+
+*The public demo (no API key) scoring a sample JD: an explicit `71.2 / 100 → APPLY` verdict, the boot-time mode banner, and — further down — the per-signal table, decision trace, and counterfactual replays. The LLM panel reads "disabled" here, which is the point: the verdict ships from the deterministic formula alone, and the LLM only ever explains it.*
+
 ---
 
 ## 1. The problem
