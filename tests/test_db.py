@@ -347,3 +347,19 @@ class TestMongoStoreConnectionCheck:
 
         # A healthy ping must NOT raise — the live Atlas path is unaffected.
         MongoStore(uri="mongodb://reachable.example:27017")
+
+    @pytest.mark.parametrize("bad_uri", ["mongodb://[::bad", "mongodb+srv://"])
+    def test_malformed_uri_degrades_to_runtimeerror(self, bad_uri):
+        """A malformed connection string fails at CONSTRUCTION (URI parse) —
+        `InvalidURI`/`ConfigurationError`/`ValueError` — BEFORE the ping. If it
+        escaped raw, `_build_store`'s `except RuntimeError` would be bypassed
+        and the whole app would crash instead of degrading to InMemoryStore.
+        It must surface as RuntimeError like every other boot failure.
+
+        Hermetic: these URIs fail at parse, so no network/Mongo is touched.
+        """
+        pytest.importorskip("pymongo")
+        from src.db import MongoStore
+
+        with pytest.raises(RuntimeError):
+            MongoStore(uri=bad_uri)
