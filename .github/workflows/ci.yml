@@ -146,10 +146,18 @@ jobs:
           set -euo pipefail
           HF_URL="https://${HF_OWNER}:${HF_TOKEN}@huggingface.co/spaces/${HF_OWNER}/${HF_SPACE_NAME}"
           git remote add hf "$HF_URL"
-          # --force is used deliberately: the HF Space is a DEPLOYED MIRROR,
-          # not a parallel dev line. GitHub main is the single source of
-          # truth; HF always matches main exactly.
-          git push --force hf main
+          # HF's pre-receive REJECTS plain-git binaries ("use xet/LFS to store
+          # binary files"). Our only binary is the README demo screenshot under
+          # assets/, which the runtime Space doesn't need — the rendered README
+          # loads it from the GitHub raw URL instead. Rather than adopt LFS just
+          # to satisfy the mirror, deploy a single flattened snapshot of main
+          # with assets/ excluded. GitHub main stays the full source of truth;
+          # the HF mirror carries everything required to build the Docker Space.
+          # --force is deliberate: the Space is a deployed mirror, not a dev line.
+          git checkout --orphan hf-mirror
+          git rm -r --cached --quiet assets
+          git commit --quiet -m "Deploy ${GITHUB_SHA} — HF runtime mirror (assets/ excluded)"
+          git push --force hf hf-mirror:main
           echo "✓ Deployed to https://huggingface.co/spaces/${HF_OWNER}/${HF_SPACE_NAME}"
 
       - name: Summary
