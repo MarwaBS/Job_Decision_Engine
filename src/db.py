@@ -232,6 +232,7 @@ class MongoStore:
     ) -> None:
         try:
             from pymongo import MongoClient  # lazy import: optional backend dep
+            from pymongo.errors import PyMongoError
         except ImportError as e:  # pragma: no cover
             raise RuntimeError(
                 "pymongo is not installed. Install from requirements.txt "
@@ -242,8 +243,30 @@ class MongoStore:
             raise RuntimeError(
                 "MongoDB URI missing. Set MONGODB_URI env var or pass uri=."
             )
-        self._client: Any = MongoClient(uri, tz_aware=True)
+        # `serverSelectionTimeoutMS` bounds the ping below: an unreachable
+        # cluster fails in ~5s instead of pymongo's 30s default, so a degraded
+        # boot is fast and visible rather than a long hang.
+        self._client: Any = MongoClient(
+            uri, tz_aware=True, serverSelectionTimeoutMS=5000
+        )
         self._db = self._client[database]
+        # VERIFY the connection now. `MongoClient` connects lazily, so without
+        # this ping an unreachable Atlas (paused cluster, IP not allow-listed,
+        # stale URI) would construct cleanly and only fail at the first query.
+        # The UI would then show a confident "Production / Atlas — persisted"
+        # banner while persistence is in fact dead. Surfacing the failure here
+        # as RuntimeError lets the app's `_build_store` fall back to
+        # InMemoryStore and render an honest "persistence degraded" warning —
+        # the UI must never claim persistence it doesn't have.
+        try:
+            self._client.admin.command("ping")
+        except PyMongoError as e:
+            raise RuntimeError(
+                "MongoDB connection could not be established (ping failed). "
+                "Check MONGODB_URI, the Atlas IP allow-list (Spaces need "
+                "0.0.0.0/0 or the Space egress range), and that the cluster "
+                "is not paused."
+            ) from e
 
     # ── Profiles ─────────────────────────────────────────────────────────────
 
