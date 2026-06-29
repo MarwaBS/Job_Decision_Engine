@@ -130,7 +130,8 @@ def _compute_metrics(outcomes: list[dict[str, Any]], store: Store) -> dict[str, 
         1
         for o in outcomes
         if o.get("final_stage") == "REJECTED"
-        and (o.get("time_to_first_response_days") or 999) <= 7
+        and (ttr := o.get("time_to_first_response_days")) is not None
+        and ttr <= 7
     )
 
     metrics = {
