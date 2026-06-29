@@ -63,9 +63,21 @@ EXPOSE 7860
 
 # Streamlit-specific env: disable usage stats collection (slow + noisy on
 # locked-down networks) and disable CORS/XSRF (HF Space proxies in front).
+#
+# fileWatcherType=none: this is a deployed image, not a dev loop — there is
+# nothing to hot-reload. Left at the default ("auto"), Streamlit's source
+# watcher walks every module in sys.modules and calls `hasattr(m, "__path__")`
+# on each. On `transformers` submodules that trips its lazy-import machinery,
+# which tries to import image processors that need `torchvision` (a dep this
+# app deliberately does NOT ship — it uses sentence-transformers/torch only).
+# Each miss floods the logs with a "Examining the path of
+# transformers.models.*.image_processing_* raised: ModuleNotFoundError: No
+# module named 'torchvision'" traceback (~91 of them). Harmless (Streamlit
+# catches them) but noisy. Disabling the watcher removes the only caller.
 ENV STREAMLIT_BROWSER_GATHER_USAGE_STATS=false \
     STREAMLIT_SERVER_ENABLE_CORS=false \
-    STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION=false
+    STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION=false \
+    STREAMLIT_SERVER_FILE_WATCHER_TYPE=none
 
 CMD ["python", "-m", "streamlit", "run", "streamlit_app/app.py", \
      "--server.address=0.0.0.0", \
