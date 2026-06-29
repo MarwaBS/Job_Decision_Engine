@@ -197,6 +197,22 @@ class TestMetricShape:
         result = evaluate(store)
         assert result.metrics.get("precision_priority") == 1.0
 
+    def test_same_day_rejection_counts_as_fast(self):
+        """Regression: a 0-day (same-day) rejection IS a fast rejection.
+
+        The old `(... or 999)` guard treated a falsy 0 as "no response" and
+        silently dropped same-day rejections from false_positive_rate. With
+        50 same-day rejections, the rate must be 1.0, not 0.0.
+        """
+        store = InMemoryStore()
+        for _ in range(50):
+            did = store.insert_decision(_decision())
+            store.insert_outcome(
+                _outcome_with_stages(did, ["SUBMITTED"], final="REJECTED", ttr_days=0)
+            )
+        result = evaluate(store)
+        assert result.metrics["false_positive_rate"] == 1.0
+
 
 # ── EvaluationResult.as_dict shape ───────────────────────────────────────────
 
