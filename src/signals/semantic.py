@@ -5,8 +5,8 @@ Weight W_semantic = 0.15.
 
 Design — Protocol-based embedding provider:
 
-The production path uses `sentence-transformers` (a ~400 MB model download
-on first use). The test path uses `MockEmbeddingProvider` which returns
+The production path uses `sentence-transformers` (a ~90 MB model-weights
+download on first use; ~175 MB on disk with tokenizer + config). The test path uses `MockEmbeddingProvider` which returns
 deterministic hash-based vectors, so the test suite runs in milliseconds
 without any model download.
 
@@ -87,7 +87,7 @@ _MODEL_REVISION = "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
 class SentenceTransformerProvider:
     """Production path — `sentence-transformers/all-MiniLM-L6-v2`.
 
-    Constructed lazily. The model download (~400 MB) only happens when
+    Constructed lazily. The model download (~90 MB of weights) only happens when
     `embed` is first called — which keeps module import cheap. The model
     revision is pinned (see ``_MODEL_REVISION``) so embeddings are
     reproducible across upstream model updates.

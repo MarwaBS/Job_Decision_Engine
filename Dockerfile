@@ -2,7 +2,10 @@
 #
 # Reproducibility lock (Step 5 rule #2):
 # - Pinned Python base (python:3.12-slim-bookworm).
-# - Pinned deps via requirements.txt (exact == pins).
+# - Pinned deps: direct pins in requirements.txt (exact ==) + the FULL
+#   transitive universe locked in requirements-lock.txt, applied as a pip
+#   constraints file — the image installs exactly the wheels the test
+#   suite and CI's pip-audit gate ran against.
 # - Non-root user matching HF Space's uid 1000 requirement.
 # - Model pre-download at build time so first request isn't slow on cold start.
 # - Same output anywhere — local `docker run` and HF Space behave identically.
@@ -33,8 +36,12 @@ ENV HOME=/home/user \
 WORKDIR /home/user/app
 
 # Install deps first to keep this layer cacheable across source edits.
+# The lock is applied as a constraints file so every transitive wheel is
+# the exact version CI tested and audited (see requirements-lock.txt
+# header). Enforced by tests/test_requirements_lock.py.
 COPY --chown=user:user requirements.txt ./requirements.txt
-RUN pip install --user --no-cache-dir -r requirements.txt
+COPY --chown=user:user requirements-lock.txt ./requirements-lock.txt
+RUN pip install --user --no-cache-dir -r requirements.txt -c requirements-lock.txt
 
 # Pre-warm the sentence-transformers model at build time. First real
 # request becomes instant; subsequent image rebuilds reuse the layer.

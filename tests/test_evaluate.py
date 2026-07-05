@@ -162,6 +162,38 @@ class TestMetricShape:
         result = evaluate(store)
         assert result.metrics["precision_priority"] == 0.5
 
+    def test_precision_apply_filters_to_apply_verdict_decisions(self):
+        """`precision_apply` is precision-of-APPLY (README §6): positives
+        over outcomes whose originating decision had verdict=APPLY —
+        mirroring the `precision_priority` join. Regression: it used to be
+        computed over ALL submitted outcomes with no verdict filter, which
+        is a different metric (overall callback precision) wearing the
+        APPLY name."""
+        store = InMemoryStore()
+        # 25 APPLY decisions, every one got a callback → precision-of-APPLY = 1.0
+        for _ in range(25):
+            did = store.insert_decision(_decision(verdict=Verdict.APPLY))
+            store.insert_outcome(_outcome_with_stages(did, ["SUBMITTED", "CALLBACK"]))
+        # 25 PRIORITY decisions, none got a callback → precision_priority = 0.0
+        for _ in range(25):
+            did = store.insert_decision(_decision(verdict=Verdict.PRIORITY))
+            store.insert_outcome(_outcome_with_stages(did, ["SUBMITTED"]))
+        result = evaluate(store)
+        # The unfiltered (buggy) computation would report 0.5 here.
+        assert result.metrics["precision_apply"] == 1.0
+        assert result.metrics["precision_priority"] == 0.0
+
+    def test_precision_apply_absent_when_no_apply_verdict_outcomes(self):
+        """Same contract as precision_priority: if no outcome joins to an
+        APPLY-verdict decision, the metric is omitted — never fabricated."""
+        store = InMemoryStore()
+        for _ in range(50):
+            did = store.insert_decision(_decision(verdict=Verdict.PRIORITY))
+            store.insert_outcome(_outcome_with_stages(did, ["SUBMITTED", "CALLBACK"]))
+        result = evaluate(store)
+        assert "precision_apply" not in result.metrics
+        assert result.metrics["precision_priority"] == 1.0
+
     def test_precision_priority_survives_objectid_keys(self):
         """Regression guard for the production-path join bug.
 

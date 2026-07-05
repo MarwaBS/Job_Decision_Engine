@@ -280,3 +280,89 @@ class TestReadmeContract:
     def test_readme_cites_the_n_50_threshold(self):
         assert "50" in self._readme()
         assert "INSUFFICIENT DATA" in self._readme()
+
+
+# ── Claim honesty: determinism scope + measured figures ─────────────────────
+
+
+class TestClaimHonesty:
+    """The repo's brand is claim-honesty: every determinism / size / speed
+    claim in the README and the UI must be scoped to what is actually
+    verified. These grep-tests pin the corrected wording so the overclaims
+    fixed in the 2026-07 re-audit (ROUND 6 item B3) cannot silently return.
+    """
+
+    def _readme(self) -> str:
+        return (Path(__file__).parent.parent / "README.md").read_text(encoding="utf-8")
+
+    def _app_source(self) -> str:
+        return (Path(__file__).parent.parent / "streamlit_app" / "app.py").read_text(
+            encoding="utf-8"
+        )
+
+    def _semantic_source(self) -> str:
+        return (
+            Path(__file__).parent.parent / "src" / "signals" / "semantic.py"
+        ).read_text(encoding="utf-8")
+
+    def test_ui_banner_scopes_determinism_to_the_deterministic_signals(self):
+        """`apply_score` is NOT identical across modes when OPENAI_API_KEY is
+        set: the orchestrator feeds live `llm_confidence` into `score()` at
+        weight 0.25 (the repo's own
+        test_orchestrator.py::test_score_with_and_without_llm_differs_by_at_most_25
+        allows a 25-point delta). The banner must scope the claim to the
+        deterministic signals and disclose the LLM-signal delta."""
+        src = self._app_source()
+        forbidden = [
+            "Scoring is identical across all modes",
+            "IDENTICAL across all four modes",
+            "scoring is deterministic across all",
+        ]
+        for needle in forbidden:
+            assert needle not in src, (
+                f"streamlit_app/app.py claims {needle!r} — false when "
+                "OPENAI_API_KEY is set (live llm_confidence, weight 0.25, "
+                "shifts apply_score by up to 25 points). Scope the claim "
+                "to the deterministic signals instead."
+            )
+        # The corrected, truthful banner wording must be present.
+        assert "The deterministic core is identical in every mode" in src
+        assert "up to 25 points" in src
+
+    def test_readme_determinism_claims_are_scoped(self):
+        """'Same input → same output, every time' and '1e-9 across local,
+        CI, and HuggingFace Spaces' were falsifiable: the LLM signal is live
+        (stochastic) whenever a key is present, and no HF-side 1e-9
+        verification exists (tests/ are excluded from the Space image by
+        .dockerignore). The README must scope both claims."""
+        readme = self._readme()
+        assert "Same input → same output, every time." not in readme
+        assert "local, CI, and HuggingFace Spaces" not in readme
+        assert "job-offer scoring engine" not in readme  # it scores JDs
+        # Corrected scoping must be present.
+        assert "LLM-absent path" in readme
+        assert "verified to 1e-9 in local and CI test runs" in readme
+
+    def test_readme_grep_test_count_matches_reality(self):
+        """README §3 cites the number of UI grep-tests; keep it equal to the
+        actual number of test methods in TestUIDoesNotRecomputeScores."""
+        n = len([m for m in dir(TestUIDoesNotRecomputeScores) if m.startswith("test_")])
+        assert n == 4, "update README §3 and this test if the count changes"
+        readme = self._readme()
+        assert "Three grep-tests" not in readme
+        assert "Four grep-tests" in readme
+
+    def test_model_size_claims_are_honest(self):
+        """all-MiniLM-L6-v2 is ~90 MB of weights (~175 MB on disk with both
+        cached snapshots), not '~400 MB'. Both the README first-visit note
+        and the semantic module docstring must state the measured figure."""
+        assert "~400 MB" not in self._readme()
+        assert "~400 MB" not in self._semantic_source()
+        assert "~90 MB" in self._readme()
+
+    def test_suite_runtime_claim_is_honest(self):
+        """The hermetic suite measures ~5-9 s on a developer laptop
+        (334 tests), not '~1-2 seconds'."""
+        readme = self._readme()
+        assert "~1–2 seconds" not in readme
+        assert "~5–10 seconds" in readme

@@ -11,13 +11,13 @@ license: mit
 
 ## What this is
 
-A deterministic job-offer scoring engine. Same input → same output, every time.
+A job-description scoring engine with a deterministic core. On the default LLM-absent path (the public demo): same input → same output, every time.
 
-Reproducibility verified to 1e-9 across local, CI, and HuggingFace Spaces.
+Determinism of that path is verified to 1e-9 in local and CI test runs. With an OpenAI key set, one bounded signal (25% of the score) comes from a live LLM and can shift the result — the UI banner always tells you which path is live.
 
 **[Live demo](https://huggingface.co/spaces/MarwaBS/job-decision-engine)**
 
-Why determinism matters: LLMs are non-deterministic by default. For decisions that affect someone's career, that's not acceptable.
+Why determinism matters: LLMs are non-deterministic by default. For decisions that affect someone's career, that's not acceptable — so the LLM contribution is bounded, disclosed, and zero unless a key is present.
 
 Stack: Pydantic v2 · sentence-transformers · OpenAI · MongoDB · Docker · GitHub Actions
 
@@ -39,9 +39,9 @@ decides it. Every decision is persisted with a full audit trace so I
 can re-derive any past verdict from the stored data.
 
 > **First-time visitor note.** The HF Space cold-start downloads the
-> `sentence-transformers/all-MiniLM-L6-v2` model (~400 MB) and builds the
-> Docker image. Allow 5–10 minutes on the very first visit. Subsequent
-> boots are near-instant.
+> `sentence-transformers/all-MiniLM-L6-v2` model (~90 MB of weights,
+> ~175 MB on disk) and builds the Docker image. Allow 5–10 minutes on the
+> very first visit. Subsequent boots are near-instant.
 
 ---
 
@@ -49,7 +49,7 @@ can re-derive any past verdict from the stored data.
 
 **What:** A deterministic engine that triages job descriptions into **PRIORITY / APPLY / REVIEW / SKIP**. The verdict comes from an explicit weighted formula; an LLM only *explains* it — it never decides it.
 
-**Why it's built this way:** same JD + same profile → same verdict, every time (verified to `1e-9`), and every decision is logged with its exact signals + weights so any past verdict can be re-derived. No black-box "AI tool" that answers differently each run.
+**Why it's built this way:** on the LLM-absent path (the public demo), same JD + same profile → same verdict, every time (deterministic scoring path verified to `1e-9` in local and CI test runs). With OpenAI enabled, the single LLM signal is bounded at 25% weight and captured per-decision. Every decision is logged with its exact signals + weights so any past verdict can be re-derived — no black-box "AI tool" that answers differently each run with nothing recorded.
 
 ```mermaid
 flowchart LR
@@ -89,7 +89,7 @@ things I should have skipped — because my own filter drifts as I get tired.
 
 The system I needed:
 
-- **Deterministic** — same JD + same profile → same verdict, every time, no matter who runs it or where
+- **Deterministic** — same JD + same profile → same verdict on the LLM-absent path, no matter who runs it or where; any LLM contribution bounded and disclosed
 - **Auditable** — every decision logged with the exact signal values + weights it was scored under, so any past verdict can be re-derived
 - **Honest about its limits** — flags structurally-bad JDs for manual review instead of pretending to score them; refuses to fake performance metrics until real outcomes accumulate
 
@@ -231,7 +231,7 @@ wires the layers into a single `evaluate_job()` entrypoint.
 
 The Streamlit UI is a thin renderer over `evaluate_job()` — it does not
 recompute scores, re-interpret signals, or call the LLM independently.
-Three grep-tests enforce this so a UI tweak can't silently drift the
+Four grep-tests enforce this so a UI tweak can't silently drift the
 contract.
 
 ---
@@ -348,7 +348,7 @@ spec says. Three layers of evidence in the repo:
   like "Requirements" must never produce phantom skills), every signal,
   persistence (with append-only contract), the LLM Protocol seam (with
   retry-or-fallback AND transport-failure wrapping), the orchestrator
-  end-to-end, and the README contract itself. Runtime: ~1–2 seconds on
+  end-to-end, and the README contract itself. Runtime: ~5–10 seconds on
   a developer laptop. No network, no model downloads.
 - **Determinism by construction, enforced in tests.** The scorer is a
   pure function (no I/O imports — grep-tested), the embedding model is
@@ -360,9 +360,13 @@ spec says. Three layers of evidence in the repo:
   bounded at 25% weight and captured per-decision for replay.)
 - **CI-enforced architectural invariants** in `.github/workflows/ci.yml`:
   four-job gate (privacy audit · hermetic test suite · ruff + mypy lint
-  and type gates · auto-deploy to HF Space). Privacy audit fails if any
-  internal artefact leaks into git. Tests, lint, and types all gate the
-  deploy. Branch protection on `main` enforces the whole pipeline.
+  and type gates + `pip-audit` over the full transitive dependency lock ·
+  auto-deploy to HF Space). Privacy audit fails if any internal artefact
+  leaks into git. Tests, lint, types, and the dependency audit all gate
+  the deploy. The Docker image installs against the same
+  `requirements-lock.txt` CI tests and audits, so the shipped wheels are
+  the tested wheels. Branch protection on `main` enforces the whole
+  pipeline.
 
 The README itself is contract-tested — formula values quoted here must
 match `src/config.py` exactly, and both examples' hermetically-computable

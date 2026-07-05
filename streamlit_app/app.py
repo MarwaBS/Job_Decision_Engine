@@ -11,25 +11,32 @@ Role: PRESENTATION LAYER ONLY. Per Step 5 hard rules:
   (sentence-transformers model, OpenAI client, Mongo client). It never
   caches decisions or signal values.
 
-Startup modes (INFORMATIONAL ONLY — scoring is deterministic across all):
+Startup modes (each mode changes persistence and whether the LLM
+signal is live — both surfaced in the boot banner):
 
     OPENAI_API_KEY present   + MONGODB_URI present        -> "Production"
     OPENAI_API_KEY present   + MONGODB_URI absent         -> "OpenAI + in-memory store"
     OPENAI_API_KEY absent    + MONGODB_URI present        -> "Mongo-backed demo (no LLM)"
     both absent                                           -> "Demo mode (in-memory, no LLM)"
 
-Deterministic-score invariant (enforced by always using the real
-embedding provider):
+Determinism scope (the real embedding provider is always used, so the
+deterministic signals cannot drift between deployments):
 
-    For a given (job, profile) input, the `apply_score` and `verdict`
-    are IDENTICAL across all four modes. The only things that change:
+    For a given (job, profile) input, the four deterministic signals
+    (skills, experience, semantic, role) and the verdict thresholds
+    are identical in every mode. Two things legitimately vary with
+    mode:
 
     1. Persistence layer — decisions saved to Atlas vs session-only.
        Same scoring either way.
-    2. LLM reasoning panel — rich text (OpenAI present) vs null
-       reasoning (OpenAI absent, llm_confidence=0.0 per architecture
-       §7). That zero IS the scored value in both deployments; the
-       LLM is never a hidden free parameter.
+    2. The LLM signal (weight 0.25). With OPENAI_API_KEY absent, the
+       LLM-absent path scores llm_confidence=0.0 — deterministically.
+       With a key present, live LLM output feeds `score()`, so
+       `apply_score` can shift by up to 25 points (and the verdict can
+       change) relative to the LLM-absent path. That zero IS the
+       scored value in LLM-absent deployments; the LLM is never a
+       hidden free parameter — which path is live is always shown in
+       the mode banner.
 
 The mock embedding provider from `src.signals.semantic` exists for
 HERMETIC TESTS ONLY and is never instantiated by the UI.
@@ -313,9 +320,13 @@ def render_header(mode: RuntimeMode, store: Store) -> None:
         f"- Store: {store_desc}\n"
         f"- Reasoner: {mode.reasoner_kind}\n"
         f"- Embeddings: {mode.embedding_kind}\n\n"
-        f"**Scoring is identical across all modes.** Only the persistence "
-        f"layer (where decisions are saved) and the LLM reasoning panel "
-        f"change. The 5-signal weighted formula is deterministic."
+        f"**The deterministic core is identical in every mode.** The four "
+        f"deterministic signals (skills, experience, semantic, role) and "
+        f"the verdict thresholds never change. What varies with mode: where "
+        f"decisions are saved, and the LLM signal (weight 0.25) — live only "
+        f"when an OpenAI key is present, scored as `llm_confidence = 0.0` "
+        f"otherwise — so scores can differ by up to 25 points between "
+        f"LLM-present and LLM-absent modes."
     )
 
 

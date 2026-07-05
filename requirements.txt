@@ -1,15 +1,23 @@
-# Job Decision Engine — pinned runtime dependencies.
+# Job Decision Engine — pinned DIRECT runtime dependencies.
 #
-# Pins are exact (==) per the lesson from the sibling nyc-real-estate-predictor
-# project: loading pickled / trained artefacts under a different library
-# version can silently corrupt outputs. We ship the exact wheel that the
-# system was built + tested against.
+# Direct pins are exact (==) per the lesson from the sibling
+# nyc-real-estate-predictor project: loading pickled / trained artefacts
+# under a different library version can silently corrupt outputs.
+#
+# Scope honesty: this file pins the DIRECT dependencies only. The full
+# transitive universe (every wheel the image actually ships) is locked in
+# requirements-lock.txt and applied as a pip constraints file by the
+# Dockerfile and both CI install steps — without it, transitives float at
+# build time (which is how starlette 1.2.1 / PYSEC-2026-248/249 once
+# reached the deployed set). Contract enforced by
+# tests/test_requirements_lock.py; the lock is pip-audited in CI.
 #
 # How to regenerate:
 #   1. make a clean venv: python -m venv .venv && .venv\Scripts\activate
-#   2. pip install -r requirements.txt
+#   2. pip install -r requirements.txt -c requirements-lock.txt
 #   3. python -m pytest tests/            (must pass)
-#   4. bump a version only when all tests are green.
+#   4. bump a version only when all tests are green, then regenerate
+#      requirements-lock.txt (instructions in its header).
 
 # ── Data contracts (Step 2 — core kernel) ────────────────────────────────────
 pydantic==2.13.3

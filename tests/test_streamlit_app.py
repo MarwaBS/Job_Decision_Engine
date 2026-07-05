@@ -15,6 +15,12 @@ from streamlit.testing.v1 import AppTest
 
 _APP_PATH = Path(__file__).resolve().parents[1] / "streamlit_app" / "app.py"
 
+# AppTest's default script timeout is 3 s — measured cold runs of these tests
+# (first import of streamlit + pydantic model build) have exceeded it on a
+# developer laptop, failing the suite spuriously. A generous explicit timeout
+# keeps the tests deterministic; warm runs still finish in well under 1 s.
+_APPTEST_TIMEOUT_S = 30.0
+
 STRONG_JD = """Title: Senior ML Engineer
 Company: Acme
 Location: Remote
@@ -52,7 +58,9 @@ def _render_decision_script(jd_text: str) -> None:
 
 def test_render_decision_scored_jd_renders_score_and_verdict() -> None:
     at = AppTest.from_function(
-        _render_decision_script, kwargs={"jd_text": STRONG_JD}
+        _render_decision_script,
+        kwargs={"jd_text": STRONG_JD},
+        default_timeout=_APPTEST_TIMEOUT_S,
     ).run()
     assert not at.exception, at.exception
     values = [m.value for m in at.metric]
@@ -67,7 +75,11 @@ def test_render_decision_scored_jd_renders_score_and_verdict() -> None:
 def test_render_decision_parse_failure_shows_na_not_zero() -> None:
     """The PARSE_FAILURE branch must render "N/A — parse failure", not "0.0/100"
     (BUG-004: an undefined score must not read as a 0% match)."""
-    at = AppTest.from_function(_render_decision_script, kwargs={"jd_text": ""}).run()
+    at = AppTest.from_function(
+        _render_decision_script,
+        kwargs={"jd_text": ""},
+        default_timeout=_APPTEST_TIMEOUT_S,
+    ).run()
     assert not at.exception, at.exception
     values = [m.value for m in at.metric]
     assert any("N/A — parse failure" in v for v in values), values

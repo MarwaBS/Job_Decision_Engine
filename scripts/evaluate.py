@@ -82,14 +82,20 @@ def evaluate(store: Store) -> EvaluationResult:
 
     # N >= 50. Compute the real outcome metrics.
     metrics = _compute_metrics(outcomes, store)
+
+    def _fmt(key: str) -> str:
+        # "n/a" when a metric is legitimately absent (e.g. no outcome joins
+        # to an APPLY-verdict decision) — never a fabricated 0.000.
+        return f"{metrics[key]:.3f}" if key in metrics else "n/a"
+
     return EvaluationResult(
         n_outcomes=n,
         is_stub=False,
         message=(
             f"Evaluation over N={n} real outcomes. "
-            f"precision_apply={metrics.get('precision_apply', 0):.3f}, "
-            f"interview_rate={metrics.get('interview_rate', 0):.3f}, "
-            f"false_positive_rate={metrics.get('false_positive_rate', 0):.3f}"
+            f"precision_apply={_fmt('precision_apply')}, "
+            f"interview_rate={_fmt('interview_rate')}, "
+            f"false_positive_rate={_fmt('false_positive_rate')}"
         ),
         metrics=metrics,
     )
@@ -101,10 +107,16 @@ def evaluate(store: Store) -> EvaluationResult:
 def _compute_metrics(outcomes: list[dict[str, Any]], store: Store) -> dict[str, float]:
     """Compute the outcome metric set.
 
-    - precision_apply: (callbacks + interviews + offers) / applications
-    - precision_priority: same, filtered to verdict=PRIORITY decisions
-    - interview_rate: interviews / applications
-    - false_positive_rate: (rejected within 7 days) / applications
+    - precision_apply: (callbacks + interviews + offers) / outcomes whose
+      originating decision had verdict=APPLY — precision-of-APPLY, per
+      README §6. Omitted when no outcome joins to an APPLY decision.
+    - precision_priority: same, for verdict=PRIORITY decisions.
+    - interview_rate: interviews / all submitted outcomes
+    - false_positive_rate: (rejected within 7 days) / all submitted outcomes
+
+    The two precision metrics are verdict-scoped via the decision join;
+    interview_rate and false_positive_rate are deliberately over ALL
+    submitted outcomes (their names claim no verdict scope).
 
     Only called when `n >= MIN_OUTCOMES_FOR_EVALUATION`. The presence of
     this function is the "framework ready" claim; the gate in `evaluate()`
@@ -118,11 +130,13 @@ def _compute_metrics(outcomes: list[dict[str, Any]], store: Store) -> dict[str, 
     def _had_any(stages: list[dict[str, Any]], *names: str) -> bool:
         return any(s.get("stage") in names for s in stages)
 
-    positive = sum(
-        1
-        for o in outcomes
-        if _had_any(o.get("stages", []), "CALLBACK", "INTERVIEW", "OFFER")
-    )
+    def _positive(subset: list[dict[str, Any]]) -> int:
+        return sum(
+            1
+            for o in subset
+            if _had_any(o.get("stages", []), "CALLBACK", "INTERVIEW", "OFFER")
+        )
+
     interviews = sum(
         1 for o in outcomes if _had_any(o.get("stages", []), "INTERVIEW", "OFFER")
     )
@@ -135,29 +149,34 @@ def _compute_metrics(outcomes: list[dict[str, Any]], store: Store) -> dict[str, 
     )
 
     metrics = {
-        "precision_apply": positive / total if total else 0.0,
         "interview_rate": interviews / total if total else 0.0,
         "false_positive_rate": fast_rejections / total if total else 0.0,
     }
 
-    # precision_priority requires joining outcomes to their originating
-    # decisions. Outcomes store `decision_id` as the STRING form of the
-    # inserted id (db.py returns `str(inserted_id)`), while Mongo documents
-    # carry a raw ObjectId in `_id` — so the index key must be stringified
-    # or the join silently never matches on the production path.
+    # The precision metrics require joining outcomes to their originating
+    # decisions to filter by verdict. Outcomes store `decision_id` as the
+    # STRING form of the inserted id (db.py returns `str(inserted_id)`),
+    # while Mongo documents carry a raw ObjectId in `_id` — so the index
+    # key must be stringified or the join silently never matches on the
+    # production path.
     decisions = {str(d.get("_id")): d for d in store.list_decisions(limit=100_000)}
-    priority_outcomes = [
-        o
-        for o in outcomes
-        if decisions.get(str(o.get("decision_id")), {}).get("verdict") == "PRIORITY"
-    ]
+
+    def _outcomes_with_verdict(verdict: str) -> list[dict[str, Any]]:
+        return [
+            o
+            for o in outcomes
+            if decisions.get(str(o.get("decision_id")), {}).get("verdict") == verdict
+        ]
+
+    apply_outcomes = _outcomes_with_verdict("APPLY")
+    if apply_outcomes:
+        metrics["precision_apply"] = _positive(apply_outcomes) / len(apply_outcomes)
+
+    priority_outcomes = _outcomes_with_verdict("PRIORITY")
     if priority_outcomes:
-        priority_positive = sum(
-            1
-            for o in priority_outcomes
-            if _had_any(o.get("stages", []), "CALLBACK", "INTERVIEW", "OFFER")
+        metrics["precision_priority"] = _positive(priority_outcomes) / len(
+            priority_outcomes
         )
-        metrics["precision_priority"] = priority_positive / len(priority_outcomes)
 
     return metrics
 
