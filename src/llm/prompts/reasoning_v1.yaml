@@ -1,8 +1,8 @@
 # Versioned prompt for the reasoning layer.
 #
-# Rollback discipline (same convention as ResumeForge per user memory):
-# shipped versions are NEVER edited in place. To change the prompt, create
-# reasoning_v2.yaml and reference it explicitly from config or the caller.
+# Rollback discipline: shipped versions are NEVER edited in place. To change
+# the prompt, create reasoning_v2.yaml and reference it explicitly from config
+# or the caller, so past decisions remain reproducible against their prompt.
 #
 # The prompt instructs GPT-4o to produce JSON matching the `ReasoningOutput`
 # schema exactly. Any deviation triggers a single retry with the error

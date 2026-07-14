@@ -230,6 +230,28 @@ class OpenAIReasoner:
             self._client = OpenAI(api_key=self._api_key)
         return self._client
 
+    def verify_live(self) -> None:
+        """Confirm the API key actually WORKS, not merely that it is present.
+
+        ``__init__`` only checks OPENAI_API_KEY is set — an invalid, revoked, or
+        unfunded key constructs an OpenAIReasoner fine and then fails on the
+        first real ``reason()`` call, which is how the live demo's banner came to
+        claim "reasoning panel populated" while every request returned "LLM
+        unavailable" (config present ≠ connection verified). A cheap
+        ``models.list()`` ping surfaces a dead key at boot; the caller
+        (``streamlit_app.app._build_reasoner``) degrades to FailingReasoner and
+        the UI shows the honest LLM-absent mode. Raises RuntimeError on any
+        failure (auth, network, timeout)."""
+        try:
+            # Same per-call timeout the real reason() calls use — a stalled
+            # connection must not hang the boot behind a spinner.
+            self._ensure_client().models.list(timeout=self._REQUEST_TIMEOUT_SECONDS)
+        except Exception as e:  # noqa: BLE001 — any failure means "not usable"
+            raise RuntimeError(
+                f"OpenAI key present but not usable ({type(e).__name__}: {e}). "
+                "The reasoner will degrade to the LLM-absent path."
+            ) from e
+
     def reason(
         self,
         *,

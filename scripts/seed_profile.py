@@ -34,8 +34,8 @@ def load_profile_from_yaml(path: Path) -> CandidateProfile:
     """
     if not path.exists():
         raise FileNotFoundError(
-            f"profile YAML not found at {path}. Create it (gitignored) "
-            f"from profile.example.yaml."
+            f"profile YAML not found at {path}. Create it (profile*.yaml is "
+            f"gitignored) with the fields of CandidateProfile in src/schemas.py."
         )
     with path.open("r", encoding="utf-8") as f:
         payload = yaml.safe_load(f)

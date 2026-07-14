@@ -241,17 +241,17 @@ class TestVerdictBoundaries:
                 Verdict.PRIORITY,
             ),
             # ── APPLY (65 ≤ score < 80) ──────────────────────────────────────────
-            # Just below PRIORITY: 79.9.
+            # Just below the PRIORITY line: 0.799 signals + role 0.5 → 76.91.
             (
                 {
                     "skills_match": 0.799,
                     "experience_match": 0.799,
                     "semantic_similarity": 0.799,
                     "llm_confidence": 0.799,
-                    "role_level_fit": 1.0,
+                    "role_level_fit": 0.5,
                 },
-                81.91,
-                Verdict.PRIORITY,
+                76.91,
+                Verdict.APPLY,
             ),
             # Mid-APPLY zone
             (
@@ -310,38 +310,53 @@ class TestVerdictBoundaries:
         assert r.apply_score == pytest.approx(expected_score, abs=1e-9)
         assert r.verdict == expected_verdict
 
-    def test_boundary_exact_priority_uses_gte(self):
-        """Score EXACTLY on the priority boundary (80.0) → PRIORITY.
+    def test_score_exactly_on_a_boundary_takes_the_gte_branch(self):
+        """A score EXACTLY equal to a threshold must take the ``>=`` branch —
+        the HIGHER verdict of the pair the boundary separates.
 
-        score >= priority → PRIORITY.
-        Constructs a score of exactly 80.0 by design: all signals 0.8, role 0.0.
-        100 * (0.30*0.8 + 0.20*0.8 + 0.15*0.8 + 0.25*0.8 + 0.10*0.0)
-          = 100 * 0.8 * 0.90 = 72.0 — nope, not 80.
-        Instead: all signals 0.8, role 0.8 is invalid (role must be discrete).
-        Use: signals such that weighted sum is exactly 0.80.
-        With role=1.0 (contrib 0.10) and all others at v: 0.90*v + 0.10 = 0.80 → v = 7/9.
-        Avoid float drift by instead using role=0.0 and all others at v: 0.90*v = 0.80 → v = 8/9.
-        Still float drift. Cleanest: role=1.0 and all others at 7/9.
-        Just verify via direct scorer output that the `>=` semantics hold: pick
-        a known-exact construction.
+        The previous boundary test constructed 82.0 — two points ABOVE the
+        priority cutoff — and asserted ``score >= priority``. That is true under
+        both ``>=`` and ``>``, so mutating any comparison in ``_score_to_verdict``
+        from ``>=`` to ``>`` survived it: the "boundary" was never actually on a
+        boundary. (Its own docstring gave up trying to construct 80.0 exactly and
+        settled for 82.0.)
 
-        Using skills=experience=semantic=llm=0.8, role=1.0:
-          = 100 * (0.30*0.8 + 0.20*0.8 + 0.15*0.8 + 0.25*0.8 + 0.10*1.0)
-          = 100 * (0.24 + 0.16 + 0.12 + 0.20 + 0.10)
-          = 100 * 0.82
-          = 82.0 → PRIORITY (well above boundary, easier to reason about).
-        The semantic commitment: if a score ≥ priority, verdict must be PRIORITY.
+        Here the score sits ON each boundary by construction: take the exact
+        float the scorer produces (no hand arithmetic → no float drift), then set
+        the threshold to precisely that value. ``>=`` yields the higher verdict;
+        ``>`` would drop to the lower one — so this kills the ``>=``→``>``
+        mutation at each of the three cutoffs (scorer.py priority/apply/review).
         """
-        s = Signals(
-            skills_match=0.8,
-            experience_match=0.8,
-            semantic_similarity=0.8,
-            llm_confidence=0.8,
-            role_level_fit=1.0,
+        signals = Signals(
+            skills_match=0.7,
+            experience_match=0.7,
+            semantic_similarity=0.7,
+            llm_confidence=0.7,
+            role_level_fit=0.5,  # discrete: one of {0.0, 0.5, 1.0}
         )
-        r = score(s)
-        assert r.apply_score >= THRESHOLDS.priority
-        assert r.verdict == Verdict.PRIORITY
+        exact = score(signals).apply_score
+        assert exact is not None
+        # ~68; offsets below keep every threshold within [48, 88] ⊂ [0, 100]
+        # and strictly monotonic (review < apply < priority).
+        cases = [
+            # (priority, apply, review, verdict when score == the on-boundary cutoff)
+            (exact, exact - 10, exact - 20, Verdict.PRIORITY),  # score == priority
+            (exact + 10, exact, exact - 10, Verdict.APPLY),  # score == apply
+            (exact + 20, exact + 10, exact, Verdict.REVIEW),  # score == review
+        ]
+        for priority, apply_, review, expected in cases:
+            th = Thresholds(
+                priority=priority,
+                **{"apply": apply_},
+                review=review,
+                version="boundary-test",
+            )
+            r = score(signals, thresholds=th)
+            assert r.apply_score == exact  # unchanged by thresholds; on the boundary
+            assert r.verdict == expected, (
+                f"score {exact} exactly on a boundary must be {expected} (>= branch), "
+                f"got {r.verdict} — a >=→> regression at that cutoff"
+            )
 
     def test_just_below_priority_is_apply(self):
         """Score 79.3 (below the 80.0 boundary) → APPLY, not PRIORITY.

@@ -292,6 +292,51 @@ class TestTransportFailures:
         assert 0 < OpenAIReasoner._REQUEST_TIMEOUT_SECONDS <= 120
 
 
+class TestVerifyLive:
+    """`verify_live` must surface a present-but-DEAD key at boot.
+
+    Regression guard for the live-demo banner lie: `detect_mode` saw
+    OPENAI_API_KEY was set and the banner claimed "reasoning panel populated",
+    but the key was dead, so every request returned "LLM unavailable". A cheap
+    `models.list()` ping distinguishes present-and-working from present-but-dead;
+    the app degrades to FailingReasoner and shows the honest banner when it
+    raises.
+    """
+
+    def _reasoner_with_models_list(self, effect):
+        from src.llm.reasoning import OpenAIReasoner
+
+        class _Models:
+            def list(self, **_kwargs):
+                return effect()
+
+        class _Client:
+            models = _Models()
+
+        reasoner = OpenAIReasoner(api_key="sk-test-not-a-real-key")
+        reasoner._client = _Client()
+        return reasoner
+
+    def test_verify_live_raises_when_key_is_dead(self):
+        import httpx
+        from openai import AuthenticationError
+
+        def _boom():
+            raise AuthenticationError(
+                message="invalid api key",
+                response=httpx.Response(401, request=httpx.Request("GET", "https://x")),
+                body=None,
+            )
+
+        reasoner = self._reasoner_with_models_list(_boom)
+        with pytest.raises(RuntimeError, match="not usable"):
+            reasoner.verify_live()
+
+    def test_verify_live_passes_when_key_works(self):
+        reasoner = self._reasoner_with_models_list(lambda: ["gpt-4o"])
+        reasoner.verify_live()  # must not raise
+
+
 # ── LLM-layer module purity: no I/O at import time ───────────────────────────
 
 

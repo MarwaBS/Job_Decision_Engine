@@ -44,6 +44,7 @@ HERMETIC TESTS ONLY and is never instantiated by the UI.
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from typing import Literal
@@ -160,18 +161,23 @@ def _build_store(mode_name: str) -> Store:
 
 @st.cache_resource
 def _build_reasoner(mode_name: str) -> LLMReasoner:
-    """Build the LLM reasoner for the detected mode.
+    """Build the LLM reasoner for the detected mode, VERIFYING it actually works.
 
-    `OpenAIReasoner()` raises only when OPENAI_API_KEY is missing — which
-    contradicts `detect_mode` having just seen it; the only realistic cause
-    is the key being unset between boot and cache rebuild. The fallback is
-    `FailingReasoner`, whose effect (reasoning=None, llm_confidence=0.0) is
-    exactly the documented LLM-absent path and is visibly surfaced by the
-    reasoning panel — not a hidden behaviour change.
+    `detect_mode` only saw that OPENAI_API_KEY is *present*. A present-but-dead
+    key (revoked, unfunded, typo'd) constructs an `OpenAIReasoner` fine and then
+    fails on the first real `reason()` — which is exactly how the live demo's
+    banner claimed "reasoning panel populated" while every request returned
+    "LLM unavailable". So we `verify_live()` (a cheap models.list ping) here at
+    boot: any failure → `FailingReasoner`, whose effect (reasoning=None,
+    llm_confidence=0.0) is the documented LLM-absent path. `main()` compares the
+    reasoner actually built against the mode and surfaces the degradation, so the
+    banner never claims a live LLM it doesn't have.
     """
     if mode_name in ("production", "openai_only"):
         try:
-            return OpenAIReasoner()
+            reasoner = OpenAIReasoner()
+            reasoner.verify_live()  # dead/invalid key → RuntimeError → degrade
+            return reasoner
         except RuntimeError:
             return FailingReasoner()
     return FailingReasoner()
@@ -285,7 +291,7 @@ def resolve_profile(store: Store) -> tuple[CandidateProfile, bool]:
 # ── UI renderers (pure — they read a DecisionResult and write Streamlit) ────
 
 
-def render_header(mode: RuntimeMode, store: Store) -> None:
+def render_header(mode: RuntimeMode, store: Store, reasoner: LLMReasoner) -> None:
     # set_page_config lives at module top (first-command rule).
     st.title("Job Decision Engine")
     st.caption(
@@ -310,6 +316,25 @@ def render_header(mode: RuntimeMode, store: Store) -> None:
     else:
         store_desc = mode.store_kind
 
+    # Same discipline for the LLM: report the reasoner ACTUALLY built. A present
+    # but dead OpenAI key degrades to FailingReasoner (verify_live failed at
+    # boot); the banner must not keep claiming "reasoning panel populated" — that
+    # exact self-contradiction (banner says gpt-4o live, every request returns
+    # "LLM unavailable") is what shipped on the demo.
+    llm_expected = mode.name in ("production", "openai_only")
+    llm_is_dead = isinstance(reasoner, FailingReasoner)
+    if llm_expected and llm_is_dead:
+        st.warning(
+            "**LLM degraded:** OPENAI_API_KEY is set but the OpenAI API is "
+            "unreachable or the key is unusable (revoked/unfunded). Reasoning is "
+            "disabled for this session — `reasoning=None`, `llm_confidence=0.0` — "
+            "so the LLM signal (weight 0.25) drops out. The deterministic core is "
+            "unaffected."
+        )
+        reasoner_desc = "FailingReasoner (DEGRADED — OpenAI configured but unusable)"
+    else:
+        reasoner_desc = mode.reasoner_kind
+
     banner = {
         "success": st.success,
         "info": st.info,
@@ -318,7 +343,7 @@ def render_header(mode: RuntimeMode, store: Store) -> None:
     banner(
         f"**Mode: {mode.label}**\n\n"
         f"- Store: {store_desc}\n"
-        f"- Reasoner: {mode.reasoner_kind}\n"
+        f"- Reasoner: {reasoner_desc}\n"
         f"- Embeddings: {mode.embedding_kind}\n\n"
         f"**The deterministic core is identical in every mode.** The four "
         f"deterministic signals (skills, experience, semantic, role) and "
@@ -464,9 +489,30 @@ def main() -> None:
     mode = detect_mode()
 
     store = _build_store(mode.name)
-    render_header(mode, store)
-
+    # Build the reasoner BEFORE the banner so render_header can report the
+    # reasoner that was ACTUALLY built (degraded to FailingReasoner if the key
+    # is dead), not the one the mere presence of the key implied.
     reasoner = _build_reasoner(mode.name)
+
+    # Structured startup log — one line per session recording WHAT actually
+    # booted (mode + the store/reasoner truly built, incl. any degradation), so
+    # an operator can answer "what is live?" from the logs, not just the UI.
+    if not st.session_state.get("_startup_logged"):
+        logging.getLogger("jde.app").info(
+            "service started",
+            extra={
+                "mode": mode.name,
+                "store": type(store).__name__,
+                "reasoner": type(reasoner).__name__,
+                "llm_live": not isinstance(reasoner, FailingReasoner),
+                "engine_version": ENGINE_VERSION,
+                "thresholds_version": THRESHOLDS.version,
+            },
+        )
+        st.session_state["_startup_logged"] = True
+
+    render_header(mode, store, reasoner)
+
     embedding_provider = _build_embedding_provider()
     profile, profile_degraded = resolve_profile(store)
     if profile_degraded:

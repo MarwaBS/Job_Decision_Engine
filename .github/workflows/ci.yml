@@ -11,16 +11,24 @@ name: CI + Deploy to HuggingFace Space
 # - Deploy only fires on push to main, never on PRs (prevents accidental
 #   production pushes from fork PRs).
 # - HF_TOKEN is a GitHub repository secret (write-scoped HF token).
-# - OPENAI_API_KEY and MONGODB_URI are set on the HF Space side (Space
-#   Settings → Variables and secrets), NOT in this workflow. The engine
-#   detects their presence at boot via streamlit_app/app.py::detect_mode
-#   and surfaces the mode in the UI banner.
+# - OPENAI_API_KEY and MONGODB_URI, WHEN USED, are configured on the HF Space
+#   side (Space Settings → Variables and secrets), NOT in this workflow — and
+#   neither is required: absent, the engine runs the deterministic LLM-absent /
+#   in-memory path. The engine detects their presence at boot via
+#   streamlit_app/app.py::detect_mode, VERIFIES a present OpenAI key actually
+#   works (not just that it is set), and surfaces the real mode in the UI banner.
 
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    # Weekly. Re-runs the gates against a live clock: pip-audit's verdict decays
+    # as new advisories land on unchanged pins (a green push-only badge would
+    # stay green over a newly-disclosed CVE), and space-health confirms the
+    # public demo is still up. deploy-hf is push-gated, so nothing deploys here.
+    - cron: "30 6 * * 1"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -114,13 +122,23 @@ jobs:
       # Audit the FULL locked dependency set — the exact universe the
       # Docker image installs — against known-vulnerability databases.
       # --no-deps: the lock is fully pinned; no re-resolution wanted.
-      # No ignores today: the lock resolves starlette 1.3.1
-      # (PYSEC-2026-248/249 fixed in 1.3.0/1.3.1) and torch 2.12.1
-      # (outside the CVE-2025-3000 affected range; 2.12.0 was inside it —
-      # verified 2026-07-04). If a new advisory lands this step goes red;
-      # never silence it without a dated, justified --ignore-vuln here.
+      # The lock resolves starlette 1.3.1 (PYSEC-2026-248/249 fixed in
+      # 1.3.0/1.3.1) and torch 2.12.1 (outside the CVE-2025-3000 affected
+      # range; 2.12.0 was inside it — verified 2026-07-04). If a NEW advisory
+      # lands this step goes red; never silence it without a dated, justified
+      # --ignore-vuln here.
+      #
+      # PYSEC-2026-3447 (setuptools, disclosed 2026-07): a BUILD-TIME sdist bug
+      # — MANIFEST.in exclude/prune globs skip Unicode normalization, so an
+      # NFD-encoded filename on a macOS APFS/HFS+ checkout can slip past an NFC
+      # exclusion when *creating a source distribution*. This service builds no
+      # sdist, runs on Linux (python:3.12-slim-bookworm), and setuptools is a
+      # build-time transitive of torch never invoked at request time — the
+      # attack precondition cannot hold. The fix (>=83.0.0) is unreachable
+      # anyway: torch 2.12.1 hard-pins `setuptools<82`. Revisit when torch
+      # relaxes that cap so we can resolve a patched setuptools.
       - name: pip-audit (locked dependency set)
-        run: pip-audit -r requirements-lock.txt --no-deps
+        run: pip-audit -r requirements-lock.txt --no-deps --ignore-vuln PYSEC-2026-3447
 
   deploy-hf:
     name: Deploy to HuggingFace Space
@@ -182,3 +200,26 @@ jobs:
           echo "- Space: [${HF_OWNER}/${HF_SPACE_NAME}](https://huggingface.co/spaces/${HF_OWNER}/${HF_SPACE_NAME})" >> "$GITHUB_STEP_SUMMARY"
           echo "- Commit: \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Build status: watch the Space page — Docker rebuild takes ~5-10 min on first deploy, ~2 min after." >> "$GITHUB_STEP_SUMMARY"
+
+  space-health:
+    name: Live Space is up (scheduled probe)
+    runs-on: ubuntu-latest
+    # The Streamlit app is the only public surface (the API is in-process), so an
+    # external probe can't inspect the banner — but it CAN confirm the demo is
+    # reachable. A red run here is the honest signal that the advertised live
+    # demo is down/crashed, the observability the pull-only app can't emit itself.
+    if: github.event_name == 'schedule'
+    timeout-minutes: 5
+    steps:
+      - name: Probe the live Space
+        run: |
+          set -euo pipefail
+          owner_lc="$(printf '%s' "$HF_OWNER" | tr '[:upper:]' '[:lower:]')"
+          url="https://${owner_lc}-${HF_SPACE_NAME}.hf.space/"
+          echo "Probing ${url}"
+          code="$(curl -sS -o /dev/null -w '%{http_code}' -L --max-time 30 "$url" || echo 000)"
+          if [ "$code" != "200" ]; then
+            echo "::error::Live Space health check failed — GET ${url} returned ${code} (expected 200). The public demo is down or crashed."
+            exit 1
+          fi
+          echo "Space healthy (HTTP 200)"

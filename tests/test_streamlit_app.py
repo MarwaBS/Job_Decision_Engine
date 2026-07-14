@@ -72,6 +72,60 @@ def test_render_decision_scored_jd_renders_score_and_verdict() -> None:
     assert any(v in verdicts for v in values), values
 
 
+def _render_header_script(mode_name: str, reasoner_state: str) -> None:
+    """Streamlit script: render the header banner for a given mode with either a
+    DEAD reasoner (FailingReasoner) or a LIVE one (MockReasoner)."""
+    from src.db import InMemoryStore
+    from src.llm.reasoning import FailingReasoner, MockReasoner
+    from streamlit_app.app import RuntimeMode, render_header
+
+    mode = RuntimeMode(
+        name=mode_name,
+        label="OpenAI + in-memory store",
+        banner_kind="info",
+        store_kind="InMemoryStore — session-only",
+        reasoner_kind="OpenAIReasoner (gpt-4o) — reasoning panel populated",
+        embedding_kind="SentenceTransformer (all-MiniLM-L6-v2)",
+    )
+    reasoner = FailingReasoner() if reasoner_state == "dead" else MockReasoner()
+    render_header(mode, InMemoryStore(), reasoner)
+
+
+def test_banner_reports_llm_degraded_when_key_is_dead() -> None:
+    """Regression for the live-demo banner lie: an OpenAI mode whose key is dead
+    (reasoner degraded to FailingReasoner) must NOT keep claiming "reasoning
+    panel populated". render_header reconciles the banner against the reasoner
+    ACTUALLY built and surfaces the degradation."""
+    at = AppTest.from_function(
+        _render_header_script,
+        kwargs={"mode_name": "openai_only", "reasoner_state": "dead"},
+        default_timeout=_APPTEST_TIMEOUT_S,
+    ).run()
+    assert not at.exception, at.exception
+    warnings = [w.value for w in at.warning]
+    assert any("LLM degraded" in w for w in warnings), warnings
+    all_banner_text = " ".join(
+        [b.value for b in at.info] + [b.value for b in at.success] + warnings
+    )
+    # The self-contradiction that shipped must be gone: no "populated" claim.
+    assert "reasoning panel populated" not in all_banner_text, all_banner_text
+    assert "DEGRADED" in all_banner_text, all_banner_text
+
+
+def test_banner_reports_live_llm_when_reasoner_works() -> None:
+    """The honest positive: an OpenAI mode with a working reasoner shows the
+    populated-panel banner and NO degradation warning."""
+    at = AppTest.from_function(
+        _render_header_script,
+        kwargs={"mode_name": "openai_only", "reasoner_state": "live"},
+        default_timeout=_APPTEST_TIMEOUT_S,
+    ).run()
+    assert not at.exception, at.exception
+    assert not any("LLM degraded" in w.value for w in at.warning)
+    banner_text = " ".join(b.value for b in at.info)
+    assert "reasoning panel populated" in banner_text, banner_text
+
+
 def test_render_decision_parse_failure_shows_na_not_zero() -> None:
     """The PARSE_FAILURE branch must render "N/A — parse failure", not "0.0/100"
     (BUG-004: an undefined score must not read as a 0% match)."""
