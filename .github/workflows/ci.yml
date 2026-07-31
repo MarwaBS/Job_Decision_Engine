@@ -137,8 +137,18 @@ jobs:
       # attack precondition cannot hold. The fix (>=83.0.0) is unreachable
       # anyway: torch 2.12.1 hard-pins `setuptools<82`. Revisit when torch
       # relaxes that cap so we can resolve a patched setuptools.
+      #
+      # PYSEC-2025-194 (torch, disclosed 2025): memory corruption reachable
+      # through `torch.jit.script`; CVSS 4.8, and the vector requires local
+      # user-level code execution. This repo calls no torch API at all —
+      # `git grep "import torch"` over the source is empty; torch arrives only
+      # as a sentence-transformers transitive for embeddings, and the JIT
+      # scripting path is never entered. The fix (2.13.0) does not resolve
+      # here: CI reported ResolutionImpossible against both the pinned
+      # sentence-transformers 5.4.1 and 5.6.1 (two runs, 2026-07-31). Revisit
+      # when the embedding stack resolves against torch >= 2.13.
       - name: pip-audit (locked dependency set)
-        run: pip-audit -r requirements-lock.txt --no-deps --ignore-vuln PYSEC-2026-3447
+        run: pip-audit -r requirements-lock.txt --no-deps --ignore-vuln PYSEC-2026-3447 --ignore-vuln PYSEC-2025-194
 
   deploy-hf:
     name: Deploy to HuggingFace Space

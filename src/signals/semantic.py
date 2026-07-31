@@ -10,7 +10,7 @@ download on first use; ~175 MB on disk with tokenizer + config). The test path u
 deterministic hash-based vectors, so the test suite runs in milliseconds
 without any model download.
 
-This follows the same pattern used in ResumeForge for `LLMProtocol`: the
+This follows the same pattern this project uses for `LLMProtocol`: the
 component's correctness is proven against the Protocol, not against any
 specific provider. A production smoke test (not part of the hermetic unit
 tests) verifies the real provider loads and produces sane outputs.

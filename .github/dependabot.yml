@@ -1,8 +1,8 @@
 # Dependabot configuration for Job Decision Engine.
 #
 # Three ecosystems monitored — same hygiene pattern as the rest of the
-# portfolio (nyc-real-estate-predictor, high-pay-salary-predictor,
-# ResumeForge). Dependabot opens weekly PRs for outdated or
+# portfolio (nyc-real-estate-predictor, high-pay-salary-predictor and a
+# private project). Dependabot opens weekly PRs for outdated or
 # CVE-affected dependencies; nothing auto-merges.
 #
 # - pip            -> requirements.txt (production runtime + test deps)
