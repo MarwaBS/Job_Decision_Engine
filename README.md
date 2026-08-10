@@ -34,9 +34,13 @@ Stack: Pydantic v2 · sentence-transformers · OpenAI · MongoDB · Docker · Gi
 
 A deterministic decision system I built to triage real job descriptions
 during my own active job search. The verdict comes from an explicit
-weighted formula; the LLM only **explains** the decision — it never
-decides it. Every decision is persisted with a full audit trace so I
-can re-derive any past verdict from the stored data.
+weighted formula. One of its five signals is an LLM confidence score
+**bounded at 25% of the weight**, so the model moves the number but
+cannot decide the verdict on its own, and it cannot overturn a
+dealbreaker: `test_dealbreaker_forces_skip_regardless_of_llm` pins that.
+Every decision is persisted with its signals, weights and versions, so
+the deterministic score re-derives exactly from stored data; the LLM's
+own wording is stored rather than regenerated, because it is stochastic.
 
 > **First-time visitor note.** The HF Space cold-start downloads the
 > `sentence-transformers/all-MiniLM-L6-v2` model (~90 MB of weights,
@@ -47,7 +51,7 @@ can re-derive any past verdict from the stored data.
 
 ## TL;DR
 
-**What:** A deterministic engine that triages job descriptions into **PRIORITY / APPLY / REVIEW / SKIP**. The verdict comes from an explicit weighted formula; an LLM only *explains* it — it never decides it.
+**What:** A deterministic engine that triages job descriptions into **PRIORITY / APPLY / REVIEW / SKIP**. The verdict comes from an explicit weighted formula whose five signals include one LLM confidence score, bounded at 25% of the weight; the model contributes to the number but cannot decide the verdict alone and cannot overturn a dealbreaker.
 
 **Why it's built this way:** on the LLM-absent path (the public demo), same JD + same profile → same verdict, every time (deterministic scoring path verified to `1e-9` in local and CI test runs). With OpenAI enabled, the single LLM signal is bounded at 25% weight and captured per-decision. Every decision is logged with its exact signals + weights so any past verdict can be re-derived — no black-box "AI tool" that answers differently each run with nothing recorded.
 
