@@ -288,8 +288,8 @@ class TestReadmeContract:
 class TestClaimHonesty:
     """The repo's brand is claim-honesty: every determinism / size / speed
     claim in the README and the UI must be scoped to what is actually
-    verified. These grep-tests pin the corrected wording so the overclaims
-    fixed in the 2026-07 re-audit (ROUND 6 item B3) cannot silently return.
+    verified. These grep-tests pin the corrected wording so an overclaim
+    cannot silently return.
     """
 
     def _readme(self) -> str:

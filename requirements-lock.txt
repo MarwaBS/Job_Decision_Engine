@@ -5,7 +5,7 @@
 # shipped image), so a transitive release can never silently change — or
 # re-introduce a vulnerability into — what was tested.
 #
-# Why this exists (2026-07 re-audit, ROUND 6 item B3): the deployed set
+# Why this exists: the deployed set
 # once carried starlette 1.2.1 (PYSEC-2026-248 / PYSEC-2026-249, fixed in
 # 1.3.0 / 1.3.1) because transitives were resolved at image-build time,
 # not locked. This lock pins starlette 1.3.1 and torch 2.12.1 (outside
@@ -44,7 +44,7 @@ dnspython==2.8.0          # via pymongo
 filelock==3.29.5          # via huggingface-hub, torch
 fsspec==2026.6.0          # via huggingface-hub, torch
 gitdb==4.0.12             # via gitpython
-gitpython==3.1.55         # via streamlit
+gitpython==3.1.58         # via streamlit
 h11==0.16.0               # via httpcore, uvicorn
 hf-xet==1.5.1 ; platform_machine == 'AMD64' or platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'arm64' or platform_machine == 'x86_64'  # via huggingface-hub
 httpcore==1.0.9           # via httpx

@@ -227,9 +227,11 @@ jobs:
           owner_lc="$(printf '%s' "$HF_OWNER" | tr '[:upper:]' '[:lower:]')"
           url="https://${owner_lc}-${HF_SPACE_NAME}.hf.space/"
           echo "Probing ${url}"
+          # Any 2xx is a live Space. Streamlit on Spaces answers this URL with
+          # 206, so requiring exactly 200 failed against a demo that was serving.
           code="$(curl -sS -o /dev/null -w '%{http_code}' -L --max-time 30 "$url" || echo 000)"
-          if [ "$code" != "200" ]; then
-            echo "::error::Live Space health check failed — GET ${url} returned ${code} (expected 200). The public demo is down or crashed."
+          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+            echo "::error::Live Space health check failed — GET ${url} returned ${code} (expected 2xx). The public demo is down or crashed."
             exit 1
           fi
-          echo "Space healthy (HTTP 200)"
+          echo "Space healthy (HTTP ${code})"

@@ -1,7 +1,6 @@
 """Contract tests for the transitive dependency lock.
 
-The claim under test (2026-07 re-audit, ROUND 6 item B3): the shipped
-image must equal the tested universe. requirements.txt pins the direct
+The claim under test: the shipped image must equal the tested universe. requirements.txt pins the direct
 deps; requirements-lock.txt locks every transitive wheel; the Dockerfile
 and both CI install steps must consume the lock as a pip constraints
 file, and CI must pip-audit the lock so a new advisory turns the build
