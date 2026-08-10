@@ -89,6 +89,24 @@ class TestInstallersConsumeTheLock:
         assert "-r requirements.txt -c requirements-lock.txt" in dockerfile
         assert "requirements-lock.txt ./requirements-lock.txt" in dockerfile
 
+    def test_dependabot_may_not_bump_transitive_pins_in_the_lock(self):
+        """pip scans every requirements*.txt, so an unrestricted config edits
+        single entries inside the lock. Because CI installs with that lock as a
+        constraints file, one bumped transitive pin contradicts the direct pin
+        that resolved it and the install dies with ResolutionImpossible."""
+        import yaml
+
+        config = yaml.safe_load(
+            (_ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+        )
+        pip = [u for u in config["updates"] if u["package-ecosystem"] == "pip"]
+        assert len(pip) == 1, "expected exactly one pip ecosystem entry"
+        allowed = pip[0].get("allow")
+        assert allowed == [{"dependency-type": "direct"}], (
+            "the pip ecosystem must be restricted to direct dependencies; "
+            f"found {allowed!r}. A lock is regenerated whole, never patched."
+        )
+
     def test_ci_installs_with_lock_constraint_and_audits_it(self):
         """Both CI install steps must use the lock constraint, and CI must
         run pip-audit against the lock so a new advisory in the shipped

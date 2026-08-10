@@ -19,6 +19,13 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    # Direct only. pip scans every requirements*.txt, so without this it edits
+    # single pins inside requirements-lock.txt, which CI feeds to pip as a
+    # constraints file. Bumping one resolved entry contradicts the direct pin
+    # that produced it and the install fails with ResolutionImpossible. A lock
+    # is regenerated whole, never patched a line at a time.
+    allow:
+      - dependency-type: "direct"
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
