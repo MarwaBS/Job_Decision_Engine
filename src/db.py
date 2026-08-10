@@ -20,9 +20,11 @@ Append-only contract:
   `final_stage` transitions only from None → terminal.
 - `feedback_logs` — append-only.
 - `profiles` — `upsert_profile` (per-version doc). Versioned means new
-  versions write new docs, they do not overwrite.
-- `jobs` — upsert by `content_hash`. Same content → same doc. No mutation
-  of the `parsed` payload after creation.
+  versions write new docs, they do not overwrite. At most one doc is
+  `active` — enforced in Mongo by a partial unique index.
+- `jobs` — upsert by `content_hash`. Same content → same doc — enforced
+  in Mongo by a unique index. No mutation of the `parsed` payload after
+  creation.
 """
 
 from __future__ import annotations
@@ -268,6 +270,13 @@ class MongoStore:
             )
             self._db = self._client[database]
             self._client.admin.command("ping")
+            # DB-enforced write invariants (idempotent): jobs dedupe by
+            # content_hash; at most one active profile. A losing racer gets a
+            # duplicate-key error; existing violations fail boot like any fault.
+            self._db.jobs.create_index("content_hash", unique=True)
+            self._db.profiles.create_index(
+                "active", unique=True, partialFilterExpression={"active": True}
+            )
         except (PyMongoError, ValueError) as e:
             raise RuntimeError(
                 "MongoDB connection could not be established. Check that "
@@ -281,7 +290,9 @@ class MongoStore:
 
     def upsert_profile(self, profile: CandidateProfile) -> str:
         doc = profile.model_dump(mode="json")
-        # Deactivate any currently-active profile of a different version.
+        # Deactivate the old active, then activate the new — two ops, not a
+        # transaction. The partial unique index on `active` turns a racing
+        # double-activation into a duplicate-key error, not two active rows.
         if doc.get("active"):
             self._db.profiles.update_many(
                 {"profile_version": {"$ne": doc["profile_version"]}, "active": True},
@@ -309,14 +320,24 @@ class MongoStore:
     # ── Jobs ─────────────────────────────────────────────────────────────────
 
     def upsert_job(self, job: Job) -> str:
+        from pymongo import ReturnDocument  # lazy, like the client import
+
         doc = job.model_dump(mode="json")
-        existing = self._db.jobs.find_one(
-            {"content_hash": doc["content_hash"]}, {"_id": 1}
+        # One atomic op, because the store is shared across Streamlit session
+        # threads. With the unique index on content_hash, concurrent identical
+        # submissions can never produce two documents.
+        found = self._db.jobs.find_one_and_update(
+            {"content_hash": doc["content_hash"]},
+            {"$setOnInsert": doc},
+            projection={"_id": 1},
+            upsert=True,
+            return_document=ReturnDocument.AFTER,
         )
-        if existing:
-            return str(existing["_id"])
-        res = self._db.jobs.insert_one(doc)
-        return str(res.inserted_id)
+        if found is None:
+            # Unreachable by Mongo semantics (upsert + AFTER always returns
+            # the doc) — but the driver types it Optional, so fail loudly.
+            raise RuntimeError("find_one_and_update returned no document")
+        return str(found["_id"])
 
     # ── Decisions (strict append-only) ───────────────────────────────────────
 

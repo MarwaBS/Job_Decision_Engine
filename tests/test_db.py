@@ -282,6 +282,45 @@ class TestDiagnostics:
             assert store.count(c) == 0
 
 
+# ── MongoStore fakes (hermetic — record what the store asks Mongo to do) ─────
+
+
+class _FakeCollection:
+    """Records index and write calls. Exposes ONLY the operations MongoStore
+    is supposed to issue — a regression to a different call shape (e.g. the
+    racy find-then-insert) fails with AttributeError instead of passing."""
+
+    def __init__(self) -> None:
+        self.create_index_calls: list = []
+        self.find_one_and_update_calls: list = []
+
+    def create_index(self, keys, **kwargs):
+        self.create_index_calls.append((keys, kwargs))
+        return "idx"
+
+    def find_one_and_update(self, filter, update, **kwargs):
+        self.find_one_and_update_calls.append((filter, update, kwargs))
+        return {"_id": "fake_oid"}
+
+
+class _FakeMongoDb:
+    def __init__(self) -> None:
+        self.jobs = _FakeCollection()
+        self.profiles = _FakeCollection()
+
+
+class _FakeMongoClient:
+    def __init__(self, *args, **kwargs):
+        self.admin = self  # so `.admin.command(...)` resolves here
+        self.db = _FakeMongoDb()
+
+    def command(self, *args, **kwargs):
+        return {"ok": 1.0}  # healthy ping
+
+    def __getitem__(self, name):
+        return self.db
+
+
 # ── MongoStore boot-time connection check ────────────────────────────────────
 
 
@@ -332,17 +371,7 @@ class TestMongoStoreConnectionCheck:
     def test_reachable_mongo_constructs_without_error(self, monkeypatch):
         pymongo = pytest.importorskip("pymongo")
 
-        class _LiveClient:
-            def __init__(self, *args, **kwargs):
-                self.admin = self
-
-            def command(self, *args, **kwargs):
-                return {"ok": 1.0}  # healthy ping
-
-            def __getitem__(self, name):
-                return object()
-
-        monkeypatch.setattr(pymongo, "MongoClient", _LiveClient)
+        monkeypatch.setattr(pymongo, "MongoClient", _FakeMongoClient)
         from src.db import MongoStore
 
         # A healthy ping must NOT raise — the live Atlas path is unaffected.
@@ -363,3 +392,76 @@ class TestMongoStoreConnectionCheck:
 
         with pytest.raises(RuntimeError):
             MongoStore(uri=bad_uri)
+
+
+# ── MongoStore DB-enforced write invariants ──────────────────────────────────
+
+
+class TestMongoStoreDbEnforcedInvariants:
+    """Two write invariants are enforced by the DATABASE, not caller
+    discipline. The store is shared across Streamlit session threads
+    (`@st.cache_resource`), so racing writers are reachable in production:
+
+    - `jobs.content_hash` is unique-indexed, and `upsert_job` is one atomic
+      `$setOnInsert` upsert — same content can never become two documents.
+    - `profiles.active` carries a partial unique index, so an interleaved
+      double-activation raises instead of leaving two active profiles.
+
+    Hermetic: the fakes record exactly what `MongoStore` asks Mongo to
+    enforce; Mongo's own unique-index semantics do the rest.
+    """
+
+    def _store(self, monkeypatch):
+        pymongo = pytest.importorskip("pymongo")
+        monkeypatch.setattr(pymongo, "MongoClient", _FakeMongoClient)
+        from src.db import MongoStore
+
+        return MongoStore(uri="mongodb://reachable.example:27017")
+
+    def test_boot_creates_unique_index_on_jobs_content_hash(self, monkeypatch):
+        store = self._store(monkeypatch)
+        assert store._db.jobs.create_index_calls == [("content_hash", {"unique": True})]
+
+    def test_boot_creates_partial_unique_index_on_active_profile(self, monkeypatch):
+        store = self._store(monkeypatch)
+        assert store._db.profiles.create_index_calls == [
+            (
+                "active",
+                {"unique": True, "partialFilterExpression": {"active": True}},
+            )
+        ]
+
+    def test_upsert_job_is_a_single_atomic_setoninsert_upsert(self, monkeypatch):
+        store = self._store(monkeypatch)
+        oid = store.upsert_job(_job("sha256:atomic"))
+
+        assert oid == "fake_oid"
+        (filter_, update, kwargs) = store._db.jobs.find_one_and_update_calls[0]
+        assert filter_ == {"content_hash": "sha256:atomic"}
+        # $setOnInsert only: an existing doc is returned untouched, never
+        # overwritten — the append-only contract for the `parsed` payload.
+        assert set(update) == {"$setOnInsert"}
+        assert kwargs["upsert"] is True
+
+    def test_index_creation_failure_degrades_to_runtimeerror(self, monkeypatch):
+        """If the collection already violates an invariant (e.g. duplicate
+        content_hash rows written before the index existed), `create_index`
+        fails — boot must degrade to RuntimeError exactly like an unreachable
+        cluster, so the app falls back honestly instead of crashing."""
+        pymongo = pytest.importorskip("pymongo")
+        from pymongo.errors import OperationFailure
+
+        class _DupClient(_FakeMongoClient):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.db.jobs.create_index = self._refuse  # type: ignore[method-assign]
+
+            @staticmethod
+            def _refuse(*args, **kwargs):
+                raise OperationFailure("E11000 duplicate key on content_hash")
+
+        monkeypatch.setattr(pymongo, "MongoClient", _DupClient)
+        from src.db import MongoStore
+
+        with pytest.raises(RuntimeError):
+            MongoStore(uri="mongodb://reachable.example:27017")
