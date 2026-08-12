@@ -278,8 +278,12 @@ class TestReadmeContract:
             assert literal in readme, f"README missing {literal!r}"
 
     def test_readme_cites_the_n_50_threshold(self):
-        assert "50" in self._readme()
-        assert "INSUFFICIENT DATA" in self._readme()
+        """A bare "50" also matches the SKIP band, which a sibling test
+        already requires, so it stays true with the eval gate undocumented."""
+        readme = self._readme()
+        assert "MIN_OUTCOMES_FOR_EVALUATION = 50" in readme
+        assert "need >= 50" in readme
+        assert "INSUFFICIENT DATA" in readme
 
 
 # ── Claim honesty: determinism scope + measured figures ─────────────────────
@@ -309,7 +313,7 @@ class TestClaimHonesty:
         """`apply_score` is NOT identical across modes when OPENAI_API_KEY is
         set: the orchestrator feeds live `llm_confidence` into `score()` at
         weight 0.25 (the repo's own
-        test_orchestrator.py::test_score_with_and_without_llm_differs_by_at_most_25
+        test_orchestrator.py::TestLLMFailureFallback::test_score_with_and_without_llm_differs_by_at_most_25
         allows a 25-point delta). The banner must scope the claim to the
         deterministic signals and disclose the LLM-signal delta."""
         src = self._app_source()
@@ -367,3 +371,55 @@ class TestClaimHonesty:
         readme = self._readme()
         assert "~1–2 seconds" not in readme
         assert "~5–10 seconds" in readme
+
+    def test_every_cited_test_id_resolves(self):
+        """A citation a reader cannot run is worth less than none."""
+        import ast
+        import re
+        import subprocess
+
+        root = Path(__file__).parent.parent
+        listing = subprocess.run(
+            ["git", "ls-files", "-z"],
+            capture_output=True,
+            text=True,
+            cwd=str(root),
+            timeout=30,
+        )
+        pattern = re.compile(
+            r"(?:tests/)?(test_[a-z_0-9]+\.py)((?:::[A-Za-z_][A-Za-z_0-9]*)+)"
+        )
+        cited: set[str] = set()
+        broken: list[str] = []
+        for name in [n for n in listing.stdout.split("\0") if n]:
+            try:
+                text = (root / name).read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            for module, path in pattern.findall(text):
+                if (cite := module + path) in cited:
+                    continue
+                cited.add(cite)
+                target = root / "tests" / module
+                if not target.exists():
+                    broken.append(f"{cite}: no such file")
+                    continue
+                node: ast.AST | None = ast.parse(target.read_text(encoding="utf-8"))
+                for part in path.strip(":").split("::"):
+                    node = next(
+                        (
+                            child
+                            for child in ast.iter_child_nodes(node)
+                            if isinstance(
+                                child,
+                                ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef,
+                            )
+                            and child.name == part
+                        ),
+                        None,
+                    )
+                    if node is None:
+                        broken.append(cite)
+                        break
+        assert cited, "no citations matched; the pattern rotted"
+        assert not broken, broken

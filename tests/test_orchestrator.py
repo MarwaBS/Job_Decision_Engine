@@ -213,7 +213,7 @@ On-site only in NYC. 5+ years Python, PyTorch.
     def test_low_parse_confidence_forces_parse_failure(self):
         """Empty JD → parse_confidence=0 → PARSE_FAILURE. LLM can't rescue it.
 
-        BUG-004: this path used to return REVIEW with apply_score=0.0, which
+        This path must not return REVIEW with apply_score=0.0, which
         users misread as "0% match". It now returns the PARSE_FAILURE input-
         quality verdict with apply_score=None.
         """

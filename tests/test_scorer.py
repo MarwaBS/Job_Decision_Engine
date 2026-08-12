@@ -134,7 +134,7 @@ class TestHardFilters:
     def test_low_parse_confidence_returns_parse_failure_with_none_score(self):
         """Below-threshold parse confidence → PARSE_FAILURE with apply_score=None.
 
-        BUG-004: previously this path returned verdict=REVIEW + apply_score=0.0,
+        This path must not return verdict=REVIEW + apply_score=0.0,
         which users read as "0% match" when the truth was "we could not parse
         the JD". PARSE_FAILURE is an input-quality verdict, orthogonal to the
         4-tier fit-signal map (PRIORITY/APPLY/REVIEW/SKIP), and apply_score is
@@ -149,7 +149,7 @@ class TestHardFilters:
         )
 
     def test_parse_failure_distinct_from_review(self):
-        """PARSE_FAILURE must NOT collapse into REVIEW (BUG-004 regression guard).
+        """PARSE_FAILURE must NOT collapse into REVIEW.
 
         REVIEW is a fit-signal verdict (apply_score in [50, 65)). PARSE_FAILURE
         is an input-quality verdict with no apply_score at all. They mean
@@ -510,7 +510,7 @@ class TestEnginePurity:
     def test_scorer_does_not_import_db_or_llm_or_http(self):
         """engine/scorer is pure.
 
-        This test reads the source and greps for forbidden imports. It is
+        This test parses the source and reads its import statements. It is
         the architectural equivalent of a coverage gate.
         """
         from pathlib import Path
@@ -519,19 +519,32 @@ class TestEnginePurity:
             Path(__file__).parent.parent / "src" / "engine" / "scorer.py"
         ).read_text(encoding="utf-8")
 
-        forbidden = [
-            "import pymongo",
-            "from pymongo",
-            "import openai",
-            "from openai",
-            "import requests",
-            "from requests",
-            "import httpx",
-            "from httpx",
-            "import aiohttp",
-            "from aiohttp",
-        ]
-        for needle in forbidden:
-            assert needle not in scorer_src, (
-                f"scorer.py imports I/O module ({needle!r}). The engine must be pure."
+        # AST, not substrings: `from src import db` binds the layer without
+        # the text `src.db`. Allowlist, not blacklist: "no I/O" is an open
+        # set, so naming offenders leaves socket and urllib through.
+        import ast
+
+        package = ["src", "engine"]  # resolves scorer.py's relative imports
+        allowed_roots = {"__future__", "src.config", "src.schemas"}
+
+        def _allowed(dotted: str) -> bool:
+            return any(
+                dotted == root or dotted.startswith(root + ".")
+                for root in allowed_roots
             )
+
+        offenders = []
+        for node in ast.walk(ast.parse(scorer_src)):
+            if isinstance(node, ast.Import):
+                offenders += [a.name for a in node.names if not _allowed(a.name)]
+            elif isinstance(node, ast.ImportFrom):
+                base = package[: len(package) - (node.level - 1)] if node.level else []
+                module = ".".join([*base, node.module] if node.module else base)
+                for alias in node.names:
+                    bound = f"{module}.{alias.name}" if module else alias.name
+                    if not _allowed(bound):
+                        offenders.append(bound)
+        assert not offenders, (
+            f"scorer.py imports outside its allowed set ({offenders}). "
+            "The engine must be pure."
+        )

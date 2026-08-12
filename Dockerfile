@@ -51,7 +51,7 @@ RUN pip install --user --no-cache-dir -r requirements.txt -c requirements-lock.t
 # runtime loads that exact pin, so pre-warming an unpinned `main` would
 # cache the wrong snapshot and re-download the pinned one on every cold
 # start the moment upstream moves. Enforced by
-# tests/test_semantic.py::test_dockerfile_prewarm_revision_matches_pin.
+# tests/test_semantic.py::TestRevisionPinning::test_dockerfile_prewarm_revision_matches_pin.
 # (Hardcoded rather than imported because this layer runs before the
 # source tree is copied, to stay cacheable across source edits.)
 RUN python -c "from sentence_transformers import SentenceTransformer; \

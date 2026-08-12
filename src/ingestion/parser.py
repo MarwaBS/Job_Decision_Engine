@@ -7,7 +7,7 @@ score in [0, 1], and a list of `parse_warnings`.
 Strategy: regex + heuristics only. No LLM. Intentionally lightweight —
 `parse_confidence` surfaces how much structure was actually recovered, and
 a confidence below `config.MIN_PARSE_CONFIDENCE` short-circuits scoring to
-the PARSE_FAILURE verdict (BUG-004 — the score is undefined, not "0%").
+the PARSE_FAILURE verdict: the score is undefined, not "0%".
 
 Extracted fields (each contributes to `parse_confidence` when found):
 
@@ -420,7 +420,7 @@ def _compute_confidence(
     Each extracted field adds a small, documented amount. Weights sum to 1.0
     so confidence is interpretable as "fraction of expected structure
     recovered". The cutoff in `config.MIN_PARSE_CONFIDENCE` (0.5) routes
-    low-structure JDs to REVIEW.
+    low-structure JDs to PARSE_FAILURE.
 
     Weights:
         structural title heading         0.15

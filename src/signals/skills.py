@@ -17,7 +17,7 @@ Rationale: required skills are hard signals; preferred skills are
 denominator to avoid division by zero when a JD lists no skills — in that
 case the function returns `0.0` and relies on the parser's low
 `parse_confidence` to short-circuit the decision to PARSE_FAILURE
-(scorer hard filter, BUG-004).
+(scorer hard filter).
 """
 
 from __future__ import annotations
@@ -106,7 +106,7 @@ def _all_skills() -> dict[str, list[str]]:
     """Flatten the taxonomy to {canonical: [aliases]}.
 
     Canonicals are unique across buckets by construction — verified by
-    `test_skills.py::test_taxonomy_no_duplicate_canonicals`.
+    `test_skills.py::TestTaxonomyInvariants::test_taxonomy_no_duplicate_canonicals`.
     """
     out: dict[str, list[str]] = {}
     for bucket in SKILLS_TAXONOMY.values():
@@ -145,8 +145,9 @@ _AMBIGUOUS_TOKENS = frozenset({"go", "r", "cv", "de", "tf", "ts", "js", "py"})
 # don't.
 #
 # KNOWN RESIDUALS (documented + pinned in
-# test_skills.py::TestAmbiguousAliasResiduals): delimiter adjacency cannot
-# see what's on the FAR side of the delimiter, so prose that happens to
+# test_skills.py::TestExtraction::test_documented_residual_phantoms_are_pinned):
+# delimiter adjacency cannot see what's on the FAR side of the delimiter, so
+# prose that happens to
 # put list punctuation against one of these tokens still matches —
 # "ready to go, and..." (trailing comma), "TS/SCI clearance" (slash),
 # "CV/cover letter" (slash), "Microsoft(R)" (parens). Disambiguating those
@@ -241,7 +242,7 @@ def compute_skills_match(job: ParsedJob, profile: CandidateProfile) -> float:
 
     Returns 0.0 when the job lists no required OR preferred skills — the
     parser's `parse_confidence` is the hard-filter that should catch this
-    case and route to REVIEW.
+    case and route to PARSE_FAILURE.
     """
     profile_skills = _candidate_skill_set(profile)
     required = _normalise(job.required_skills)

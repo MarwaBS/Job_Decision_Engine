@@ -128,7 +128,7 @@ def test_banner_reports_live_llm_when_reasoner_works() -> None:
 
 def test_render_decision_parse_failure_shows_na_not_zero() -> None:
     """The PARSE_FAILURE branch must render "N/A — parse failure", not "0.0/100"
-    (BUG-004: an undefined score must not read as a 0% match)."""
+    (an undefined score must not read as a 0% match)."""
     at = AppTest.from_function(
         _render_decision_script,
         kwargs={"jd_text": ""},

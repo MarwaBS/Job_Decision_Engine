@@ -33,7 +33,7 @@ class Verdict(StrEnum):
         PARSE_FAILURE. Returned when the JD could not be parsed reliably
         enough to score (parse_confidence < MIN_PARSE_CONFIDENCE). The
         `apply_score` on a PARSE_FAILURE result is `None`, not 0.0 — the
-        score is undefined, not "0% match" (BUG-004).
+        score is undefined, not "0% match".
     """
 
     PRIORITY = "PRIORITY"
@@ -277,10 +277,7 @@ class CandidateProfile(BaseModel):
 
 
 class ParsedJob(BaseModel):
-    """Output of the ingestion layer.
-
-    `parse_confidence < 0.5` triggers the REVIEW hard filter in the scorer.
-    """
+    """Output of the ingestion layer."""
 
     model_config = ConfigDict(frozen=True)
 

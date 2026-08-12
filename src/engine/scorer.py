@@ -5,7 +5,7 @@ Pure function: same (signals, weights, thresholds) → same
 
 This is the only module in the system that can claim "provably deterministic".
 It has no imports from `db`, `llm`, or any I/O layer, by design. If that ever
-changes, the test suite will catch it (`test_scorer.py::test_no_io_imports`).
+changes, `test_scorer.py::TestEnginePurity` catches it.
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ def score(
     # would convert garbage input into a confident SKIP. PARSE_FAILURE wins.
 
     if signals.parse_confidence < MIN_PARSE_CONFIDENCE:
-        # Input-quality verdict, NOT a fit-signal verdict (BUG-004).
+        # Input-quality verdict, NOT a fit-signal verdict.
         # apply_score is None because the score is undefined when the JD
         # could not be parsed — "0.0/100 REVIEW" was misread as "0% match"
         # by users when the truth was "we could not parse the JD".

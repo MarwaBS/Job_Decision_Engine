@@ -7,7 +7,7 @@ file, and CI must pip-audit the lock so a new advisory turns the build
 red.
 
 These are file-contract greps in the same spirit as
-tests/test_semantic.py::test_dockerfile_prewarm_revision_matches_pin —
+tests/test_semantic.py::TestRevisionPinning::test_dockerfile_prewarm_revision_matches_pin —
 they make it impossible to edit one side of the contract without the
 suite noticing.
 """

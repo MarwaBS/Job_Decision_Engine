@@ -432,16 +432,22 @@ class TestMongoStoreDbEnforcedInvariants:
         ]
 
     def test_upsert_job_is_a_single_atomic_setoninsert_upsert(self, monkeypatch):
+        from pymongo import ReturnDocument
+
         store = self._store(monkeypatch)
         oid = store.upsert_job(_job("sha256:atomic"))
 
         assert oid == "fake_oid"
+        assert len(store._db.jobs.find_one_and_update_calls) == 1
         (filter_, update, kwargs) = store._db.jobs.find_one_and_update_calls[0]
         assert filter_ == {"content_hash": "sha256:atomic"}
         # $setOnInsert only: an existing doc is returned untouched, never
         # overwritten — the append-only contract for the `parsed` payload.
         assert set(update) == {"$setOnInsert"}
         assert kwargs["upsert"] is True
+        # BEFORE returns None on the insert branch, which is every job seen for
+        # the first time, and upsert_job raises on None.
+        assert kwargs["return_document"] is ReturnDocument.AFTER
 
     def test_index_creation_failure_degrades_to_runtimeerror(self, monkeypatch):
         """If the collection already violates an invariant (e.g. duplicate

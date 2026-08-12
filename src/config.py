@@ -76,5 +76,5 @@ verdict itself.
 MIN_PARSE_CONFIDENCE: float = 0.5
 """If `Signals.parse_confidence < MIN_PARSE_CONFIDENCE`, the scorer
 short-circuits to the PARSE_FAILURE verdict with `apply_score=None` —
-the score is undefined when the JD could not be parsed (BUG-004). This is
+the score is undefined when the JD could not be parsed. This is
 one of the scorer's hard filters, applied before the weighted sum."""

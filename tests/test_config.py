@@ -41,11 +41,12 @@ class TestWeights:
         assert total == pytest.approx(1.0)
 
     def test_llm_weight_not_dominant(self):
-        """The LLM cannot single-handedly flip a decision.
+        """The LLM weight stays below the two largest deterministic weights.
 
-        Operationalised here as: LLM weight must be strictly less than the
-        sum of the two largest deterministic signals (skills + experience).
-        Catches any future retuning that would let the LLM dominate.
+        That is the whole property: it does NOT mean the LLM cannot flip a
+        verdict. 25 points spans the 15-point REVIEW and APPLY bands, so a
+        borderline JD can move two steps on `llm_confidence` alone. The
+        cap itself is pinned by `test_weights_match_architecture_section_6`.
         """
         deterministic_top_two = WEIGHTS.skills + WEIGHTS.experience
         assert WEIGHTS.llm < deterministic_top_two

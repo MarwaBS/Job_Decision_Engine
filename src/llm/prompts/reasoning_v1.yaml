@@ -46,8 +46,8 @@ system: |
     Example: "5 years of Python + PyTorch directly applied to X" is good;
     "Highlight your enthusiasm" is bad.
 
-  Every bullet must be <=120 characters. Longer bullets are truncated by the
-  schema validator and cause a retry — don't waste tokens.
+  Every bullet must be <=120 characters. Longer bullets are rejected by the
+  schema validator and cost a retry — don't waste tokens.
 
 user: |
   ## Job description (parsed)

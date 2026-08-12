@@ -212,7 +212,7 @@ def test_verdict_values_locked():
 
     Four fit-signal (threshold-derived) verdicts: PRIORITY, APPLY,
     REVIEW, SKIP. Plus one orthogonal input-quality verdict: PARSE_FAILURE
-    (added under BUG-004 — distinct axis, no apply_score, semantic "N/A").
+    (a distinct axis: no apply_score, semantic "N/A").
     """
     assert {v.value for v in Verdict} == {
         "PRIORITY",

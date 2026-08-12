@@ -60,7 +60,7 @@ flowchart LR
   UI["Streamlit UI<br/>(presentation only)"] --> ORC["Orchestrator<br/>evaluate_job()"]
   ORC --> P["Parser<br/>parse-confidence gate"]
   ORC --> SIG["Signals<br/>skills · experience<br/>semantic · role"]
-  ORC --> LLM["LLM reasoning<br/>bounded ≤25 pts · explains only"]
+  ORC --> LLM["LLM reasoning<br/>bounded ≤25 pts + explanation"]
   P --> SC["Scorer<br/>pure · deterministic to 1e-9"]
   SIG --> SC
   LLM --> SC
@@ -80,7 +80,7 @@ flowchart LR
 
 ![The Job Decision Engine demo scoring a Senior ML Engineer JD: a 71.2/100 APPLY verdict with the per-signal breakdown and weights shown below it.](https://raw.githubusercontent.com/MarwaBS/Job_Decision_Engine/main/assets/demo-apply-verdict.png)
 
-*The public demo (no API key) scoring a sample JD: an explicit `71.2 / 100 → APPLY` verdict, the boot-time mode banner, and — further down — the per-signal table, decision trace, and counterfactual replays. (This is a different sample than the reproducible **Example B** below, so its score differs slightly.) The LLM panel reads "disabled" here, which is the point: the verdict ships from the deterministic formula alone, and the LLM only ever explains it.*
+*The public demo (no API key) scoring a sample JD: an explicit `71.2 / 100 → APPLY` verdict, the boot-time mode banner, and — further down — the per-signal table, decision trace, and counterfactual replays. (This is a different sample than the reproducible **Example B** below, so its score differs slightly.) The LLM panel reads "disabled" here, which is the point: this verdict ships from the deterministic formula alone.*
 
 ---
 
@@ -290,8 +290,16 @@ v2 retunes them.
 The LLM contributes in exactly two ways:
 
 1. As a **bounded numeric signal** (`llm_confidence ∈ [0, 1]`, weighted
-   at `0.25`). Capped so it cannot single-handedly flip a decision —
-   enforced by `test_config.py::test_llm_weight_not_dominant`.
+   at `0.25`). Capped at 25 points, so it alone cannot reach the 65-point
+   APPLY cutoff and cannot override a dealbreaker. It is not
+   decision-neutral: the REVIEW and APPLY bands are 15 points each, so on
+   a borderline JD those 25 points can lift the verdict by two steps — a
+   score just under 50 (SKIP) reaches APPLY at `llm_confidence = 1.0`.
+   The cap is pinned by `test_config.py::TestWeights::test_weights_match_architecture_section_6`
+   (`WEIGHTS.llm == 0.25`) and
+   `test_orchestrator.py::TestLLMFailureFallback::test_score_with_and_without_llm_differs_by_at_most_25`;
+   the dealbreaker floor by
+   `test_orchestrator.py::TestLLMCannotOverrideVerdict::test_dealbreaker_forces_skip_regardless_of_llm`.
 2. As an **explanatory layer** (strengths, gaps, risks, talking points).
    These are stored on the decision for display; no downstream
    calculation reads them.
@@ -305,7 +313,7 @@ violation, retry exhausted), the decision still ships — with
 tested: `test_llm_reasoning.py::TestTransportFailures` proves a dead
 network cannot crash an evaluation (each API request is also bounded by
 an explicit 30-second timeout), and
-`test_orchestrator.py::test_dealbreaker_forces_skip_regardless_of_llm`
+`test_orchestrator.py::TestLLMCannotOverrideVerdict::test_dealbreaker_forces_skip_regardless_of_llm`
 proves that an LLM returning `llm_confidence=1.0` cannot override a
 dealbreaker SKIP verdict.
 

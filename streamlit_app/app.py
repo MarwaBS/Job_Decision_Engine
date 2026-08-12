@@ -364,7 +364,7 @@ def render_decision(decision: DecisionResult) -> None:
     col_score, col_verdict, col_engine = st.columns([1, 1, 1])
 
     if decision.apply_score is None:
-        # PARSE_FAILURE path (BUG-004): the JD could not be parsed reliably
+        # PARSE_FAILURE path: the JD could not be parsed reliably
         # enough to score, so the score is undefined — render "N/A — parse
         # failure" rather than misleading users with "0.0/100".
         col_score.metric(
