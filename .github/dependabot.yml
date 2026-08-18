@@ -18,14 +18,12 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
-    # Direct only. pip scans every requirements*.txt, so without this it edits
-    # single pins inside requirements-lock.txt, which CI feeds to pip as a
-    # constraints file. Bumping one resolved entry contradicts the direct pin
-    # that produced it and the install fails with ResolutionImpossible. A lock
-    # is regenerated whole, never patched a line at a time.
-    allow:
-      - dependency-type: "direct"
+    # Version updates off. Dependabot counts every explicitly defined package as
+    # direct, so an allow filter cannot tell requirements.txt apart from the
+    # transitive set in requirements-lock.txt, and it patched single lock lines.
+    # The lock is regenerated whole, per its header. Security PRs are not
+    # subject to this limit and still arrive.
+    open-pull-requests-limit: 0
     commit-message:
       prefix: "chore(deps)"
       include: "scope"

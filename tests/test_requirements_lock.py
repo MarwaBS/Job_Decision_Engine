@@ -90,10 +90,17 @@ class TestInstallersConsumeTheLock:
         assert "requirements-lock.txt ./requirements-lock.txt" in dockerfile
 
     def test_dependabot_may_not_bump_transitive_pins_in_the_lock(self):
-        """pip scans every requirements*.txt, so an unrestricted config edits
-        single entries inside the lock. Because CI installs with that lock as a
+        """pip scans every requirements*.txt, so version updates edit single
+        entries inside the lock. Because CI installs with that lock as a
         constraints file, one bumped transitive pin contradicts the direct pin
-        that resolved it and the install dies with ResolutionImpossible."""
+        that resolved it and the install dies with ResolutionImpossible.
+
+        An allow filter of dependency-type direct does not prevent this, which
+        is why this check no longer looks for one. Dependabot counts every
+        explicitly defined package as direct, and the lock defines the entire
+        transitive set, so the filter matches all of it. Switching version
+        updates off is the part that holds. Security updates are not subject to
+        this limit and still open PRs."""
         import yaml
 
         config = yaml.safe_load(
@@ -101,10 +108,10 @@ class TestInstallersConsumeTheLock:
         )
         pip = [u for u in config["updates"] if u["package-ecosystem"] == "pip"]
         assert len(pip) == 1, "expected exactly one pip ecosystem entry"
-        allowed = pip[0].get("allow")
-        assert allowed == [{"dependency-type": "direct"}], (
-            "the pip ecosystem must be restricted to direct dependencies; "
-            f"found {allowed!r}. A lock is regenerated whole, never patched."
+        limit = pip[0].get("open-pull-requests-limit")
+        assert limit == 0, (
+            f"pip version updates must stay off; open-pull-requests-limit is {limit!r}. "
+            "A lock is regenerated whole, never patched."
         )
 
     def test_ci_installs_with_lock_constraint_and_audits_it(self):

@@ -123,8 +123,9 @@ jobs:
       # Docker image installs — against known-vulnerability databases.
       # --no-deps: the lock is fully pinned; no re-resolution wanted.
       # The lock resolves starlette 1.3.1 (PYSEC-2026-248/249 fixed in
-      # 1.3.0/1.3.1) and torch 2.12.1 (outside the CVE-2025-3000 affected
-      # range; 2.12.0 was inside it — verified 2026-07-04). If a NEW advisory
+      # 1.3.0/1.3.1) and torch 2.12.1. GHSA-rrmf-rvhw-rf47 covered only 2.12.0
+      # when it was checked on 2026-07-04 and now reads torch <= 2.12.1, so the
+      # pin is inside it and the waiver below is what holds. If a NEW advisory
       # lands this step goes red; never silence it without a dated, justified
       # --ignore-vuln here.
       #
