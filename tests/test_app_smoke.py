@@ -19,6 +19,9 @@ context. A separate manual smoke (`streamlit run`) covers that path.
 from __future__ import annotations
 
 import importlib
+import re
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -371,6 +374,33 @@ class TestClaimHonesty:
         readme = self._readme()
         assert "~1–2 seconds" not in readme
         assert "~5–10 seconds" in readme
+
+    def test_collected_suite_meets_the_published_floor(self):
+        """The README and the badge publish 300+ tests. An exact count
+        would rot when the suite grows. A floor fails only if collection
+        drops below what those pages still claim."""
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                "--collect-only",
+                "-q",
+                "-p",
+                "no:cacheprovider",
+            ],
+            cwd=Path(__file__).parent.parent,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=60,
+        )
+        match = re.search(r"(\d+) tests collected", result.stdout)
+        assert match, f"could not read a collection count from:\n{result.stdout[-500:]}"
+        assert int(match.group(1)) >= 300
+        readme = self._readme()
+        assert "300+" in readme
+        assert "tests-300%2B" in readme
 
     def test_every_cited_test_id_resolves(self):
         """A citation a reader cannot run is worth less than none."""

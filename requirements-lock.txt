@@ -45,7 +45,7 @@ dnspython==2.8.0          # via pymongo
 filelock==3.29.5          # via huggingface-hub, torch
 fsspec==2026.6.0          # via huggingface-hub, torch
 gitdb==4.0.12             # via gitpython
-gitpython==3.1.58         # via streamlit
+gitpython==3.1.62         # via streamlit
 h11==0.16.0               # via httpcore, uvicorn
 hf-xet==1.5.1 ; platform_machine == 'AMD64' or platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'arm64' or platform_machine == 'x86_64'  # via huggingface-hub
 httpcore==1.0.9           # via httpx

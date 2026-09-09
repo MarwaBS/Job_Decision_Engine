@@ -79,6 +79,24 @@ class TestLockCoversDirectPins:
             "floor (PYSEC-2026-248 / PYSEC-2026-249)."
         )
 
+    def test_lock_resolves_patched_gitpython(self):
+        """CI pip-audit of this lock, with only the documented torch and
+        setuptools ignores, fails on gitpython 3.1.58 (PYSEC-2026-3785,
+        PYSEC-2026-3786, PYSEC-2026-3787, PYSEC-2026-3788, CVE-2026-78679).
+        pip-audit names 3.1.59 as the first patched release. streamlit
+        allows gitpython<4, so the lock can take that floor without a new
+        ignore. This test holds the floor so a later compile cannot put
+        3.1.58 back."""
+        locked = _pins(_ROOT / "requirements-lock.txt")
+        version = locked.get("gitpython")
+        assert version is not None, "gitpython missing from the lock"
+        major, minor, patch = (int(p) for p in version.split(".")[:3])
+        assert (major, minor, patch) >= (3, 1, 59), (
+            f"gitpython=={version} in the lock is below the 3.1.59 security "
+            "floor (PYSEC-2026-3785 / PYSEC-2026-3786 / PYSEC-2026-3787 / "
+            "PYSEC-2026-3788 / CVE-2026-78679)."
+        )
+
 
 class TestInstallersConsumeTheLock:
     def test_dockerfile_installs_with_lock_constraint(self):
