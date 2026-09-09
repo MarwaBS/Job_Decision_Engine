@@ -13,11 +13,11 @@ license: mit
 
 A job-description scoring engine with a deterministic core. On the default LLM-absent path (the public demo): same input → same output, every time.
 
-Determinism of that path is verified to 1e-9 in local and CI test runs. With an OpenAI key set, one bounded signal (25% of the score) comes from a live LLM and can shift the result — the UI banner always tells you which path is live.
+Determinism of that path is verified to 1e-9 in local and CI test runs. With an OpenAI key set, one bounded signal (25% of the score) comes from a live LLM and can shift the result - the UI banner always tells you which path is live.
 
 **[Live demo](https://huggingface.co/spaces/MarwaBS/job-decision-engine)**
 
-Why determinism matters: LLMs are non-deterministic by default. For decisions that affect someone's career, that's not acceptable — so the LLM contribution is bounded, disclosed, and zero unless a key is present.
+Why determinism matters: LLMs are non-deterministic by default. For decisions that affect someone's career, that's not acceptable - so the LLM contribution is bounded, disclosed, and zero unless a key is present.
 
 Stack: Pydantic v2 · sentence-transformers · OpenAI · MongoDB · Docker · GitHub Actions
 
@@ -53,7 +53,7 @@ own wording is stored rather than regenerated, because it is stochastic.
 
 **What:** A deterministic engine that triages job descriptions into **PRIORITY / APPLY / REVIEW / SKIP**. The verdict comes from an explicit weighted formula whose five signals include one LLM confidence score, bounded at 25% of the weight; the model contributes to the number but cannot decide the verdict alone and cannot overturn a dealbreaker.
 
-**Why it's built this way:** on the LLM-absent path (the public demo), same JD + same profile → same verdict, every time (deterministic scoring path verified to `1e-9` in local and CI test runs). With OpenAI enabled, the single LLM signal is bounded at 25% weight and captured per-decision. Every decision is logged with its exact signals + weights so any past verdict can be re-derived — no black-box "AI tool" that answers differently each run with nothing recorded.
+**Why it's built this way:** on the LLM-absent path (the public demo), same JD + same profile → same verdict, every time (deterministic scoring path verified to `1e-9` in local and CI test runs). With OpenAI enabled, the single LLM signal is bounded at 25% weight and captured per-decision. Every decision is logged with its exact signals + weights so any past verdict can be re-derived - no black-box "AI tool" that answers differently each run with nothing recorded.
 
 ```mermaid
 flowchart LR
@@ -72,7 +72,7 @@ flowchart LR
 |---|---|---|
 | **PRIORITY** | ≥ 80 | Apply same day |
 | **APPLY** | 65–80 | Apply this week |
-| **REVIEW** | 50–65 | Read manually — the engine isn't confident either way |
+| **REVIEW** | 50–65 | Read manually - the engine isn't confident either way |
 | **SKIP** | < 50 | Trust it, move on |
 | **PARSE_FAILURE** | n/a | JD unparseable (`score = None`, not "0% match") |
 
@@ -80,7 +80,7 @@ flowchart LR
 
 ![The Job Decision Engine demo scoring a Senior ML Engineer JD: a 71.2/100 APPLY verdict with the per-signal breakdown and weights shown below it.](https://raw.githubusercontent.com/MarwaBS/Job_Decision_Engine/main/assets/demo-apply-verdict.png)
 
-*The public demo (no API key) scoring a sample JD: an explicit `71.2 / 100 → APPLY` verdict, the boot-time mode banner, and — further down — the per-signal table, decision trace, and counterfactual replays. (This is a different sample than the reproducible **Example B** below, so its score differs slightly.) The LLM panel reads "disabled" here, which is the point: this verdict ships from the deterministic formula alone.*
+*The public demo (no API key) scoring a sample JD: an explicit `71.2 / 100 → APPLY` verdict, the boot-time mode banner, and - further down - the per-signal table, decision trace, and counterfactual replays. (This is a different sample than the reproducible **Example B** below, so its score differs slightly.) The LLM panel reads "disabled" here, which is the point: this verdict ships from the deterministic formula alone.*
 
 ---
 
@@ -89,13 +89,13 @@ flowchart LR
 I'm in active job search for senior ML / AI engineering roles. Manual
 triage of 50+ job descriptions per week is noisy, biased, and exhausting.
 By Friday I'm rejecting things I should have applied to and applying to
-things I should have skipped — because my own filter drifts as I get tired.
+things I should have skipped - because my own filter drifts as I get tired.
 
 The system I needed:
 
-- **Deterministic** — same JD + same profile → same verdict on the LLM-absent path, no matter who runs it or where; any LLM contribution bounded and disclosed
-- **Auditable** — every decision logged with the exact signal values + weights it was scored under, so any past verdict can be re-derived
-- **Honest about its limits** — flags structurally-bad JDs for manual review instead of pretending to score them; refuses to fake performance metrics until real outcomes accumulate
+- **Deterministic** - same JD + same profile → same verdict on the LLM-absent path, no matter who runs it or where; any LLM contribution bounded and disclosed
+- **Auditable** - every decision logged with the exact signal values + weights it was scored under, so any past verdict can be re-derived
+- **Honest about its limits** - flags structurally-bad JDs for manual review instead of pretending to score them; refuses to fake performance metrics until real outcomes accumulate
 
 What I did NOT need: another LLM-driven "AI tool" that gives different
 answers on different runs. The decision should be reproducible; the
@@ -111,17 +111,17 @@ them through the real engine. The hermetically-computable numbers below
 (parse confidence, extracted skills, skills/experience/role signals,
 verdicts) are pinned by `tests/test_demo_example.py`; the two
 model-dependent numbers (`semantic_sim` and the final `apply_score`)
-are deliberately not in the hermetic suite — they are reproduced by the
+are deliberately not in the hermetic suite - they are reproduced by the
 script itself, which loads the pinned model revision:
 
 ```
 python -m scripts.demo_example
 ```
 
-### Example A — unstructured prose JD (committed fixture `EXAMPLE_A_JD`)
+### Example A - unstructured prose JD (committed fixture `EXAMPLE_A_JD`)
 
 The first JD I hit this wall with in real usage was a FAANG posting
-written as polished prose — no labeled headers, no `Title:` /
+written as polished prose - no labeled headers, no `Title:` /
 `Company:` / `Location:` lines, no explicit years figure. The committed
 fixture reproduces that exact structural shape:
 
@@ -130,13 +130,13 @@ parse_confidence:  0.45    ← BELOW the MIN_PARSE_CONFIDENCE = 0.5 hard filter
                             (seniority cue 0.10 + ≥1 skill 0.20 + ≥3 skills 0.15)
 verdict:           PARSE_FAILURE
 failure_mode:      low_parse_confidence
-score:             None    (undefined — the JD couldn't be parsed, so no
+score:             None    (undefined - the JD couldn't be parsed, so no
                             weighted sum is computed; "N/A" in the UI)
 ```
 
 **What the system is saying:** "I extracted some skills and a seniority
 cue, but I missed enough structural cues that I'm not confident I parsed
-this correctly. Don't trust a numeric score — read it yourself." That is
+this correctly. Don't trust a numeric score - read it yourself." That is
 what I did with the real posting: read it manually, judged the stretch,
 and skipped it.
 
@@ -144,12 +144,12 @@ and skipped it.
 soft-weighted the low parse confidence and shipped a confident-looking
 score from garbage parser output.
 
-### Example B — Acme AI Senior ML Engineer (structured JD, fully reproducible)
+### Example B - Acme AI Senior ML Engineer (structured JD, fully reproducible)
 
 Same engine, this time on a JD with explicit `Title:` / `Company:` /
 `Location:` headers + a "Requirements" section + a "Nice to have"
 section. **Every number below is reproducible from a clone of this
-repo** — the exact JD and profile are committed in
+repo** - the exact JD and profile are committed in
 `scripts/demo_example.py`, and the run is deterministic (pinned model
 revision, LLM-absent path, no API key needed):
 
@@ -160,7 +160,7 @@ parse_confidence:  1.00    (8 of 8 structural cues found)
 skills_match:      0.895   (8/8 required matched + 1/3 nice-to-have)
 experience_match:  1.000   (5+ years required, demo profile has 6)
 semantic_sim:      0.879   (all-MiniLM-L6-v2 @ pinned revision)
-llm_confidence:    0.000   (LLM-absent path — no API key)
+llm_confidence:    0.000   (LLM-absent path - no API key)
 role_level_fit:    1.000   (senior JD, senior profile)
 
 apply_score:       70.0    ← APPLY band (65 ≤ s < 80)
@@ -179,7 +179,7 @@ hermetic suite by design).
 With OpenAI enabled, the LLM adds its bounded signal (≤ 25 points at
 `llm_confidence = 1.0`); a calibrated confidence around 0.75 lifts this
 JD into PRIORITY. The reasoning panel from a live GPT-4o session on this
-JD (illustrative — LLM output is stochastic and not reproducible by
+JD (illustrative - LLM output is stochastic and not reproducible by
 design; it is captured per-decision for replay):
 
 - Strengths: "6 years in ML engineering, meets experience requirement" · "Proficient in Python, PyTorch, FastAPI, and Docker" · "Strong MLOps background with AWS experience" · "Experience with LLM pipelines aligns with preferred skills"
@@ -192,20 +192,20 @@ design; it is captured per-decision for replay):
 | Verdict | What I do |
 |---|---|
 | **PRIORITY** (≥80) | Apply same day. Use the talking points; address gaps in cover letter. |
-| **APPLY** (65–80) | Apply within the week. Read the trace first — if `near_threshold_flag = True` (within 3 points of REVIEW), check the LLM gaps before drafting. |
+| **APPLY** (65–80) | Apply within the week. Read the trace first - if `near_threshold_flag = True` (within 3 points of REVIEW), check the LLM gaps before drafting. |
 | **REVIEW** (50–65) | Read the JD manually. The system flags this band when it can't be confident either way. |
 | **SKIP** (<50) | Trust the system. Move on. |
-| **PARSE_FAILURE** (orthogonal — not a score tier) | The JD couldn't be parsed reliably (`parse_confidence < 0.5`). `apply_score` is `None` (not 0) — score is undefined, not "0% match". Re-paste a cleaner copy of the JD or read it manually. |
+| **PARSE_FAILURE** (orthogonal - not a score tier) | The JD couldn't be parsed reliably (`parse_confidence < 0.5`). `apply_score` is `None` (not 0) - score is undefined, not "0% match". Re-paste a cleaner copy of the JD or read it manually. |
 
 Note: PRIORITY/APPLY/REVIEW/SKIP are **fit-signal** verdicts derived from
 `apply_score`. PARSE_FAILURE is an **input-quality** verdict on a separate
-axis — a JD whose text is unparseable is not "a 0% match", it's
+axis - a JD whose text is unparseable is not "a 0% match", it's
 unscorable. The two distinctions lead to different next steps, so they
 are reported as different verdicts.
 
 The audit log is in MongoDB Atlas. Every decision has its signal vector,
 weights, thresholds version, engine version, and (when LLM ran) the raw
-reasoning blob — so I can re-derive any past verdict and verify it was
+reasoning blob - so I can re-derive any past verdict and verify it was
 correct given what was known at the time.
 
 ---
@@ -228,12 +228,12 @@ correct given what was known at the time.
 ```
 
 Each box maps to a directory under `src/`. The engine layer (scorer) is
-**pure** — no I/O, no network, no model calls. All I/O lives behind the
+**pure** - no I/O, no network, no model calls. All I/O lives behind the
 `Store` and `LLMReasoner` Protocol seams in `src/db.py` and
 `src/llm/reasoning.py`. The orchestrator in `src/engine/orchestrator.py`
 wires the layers into a single `evaluate_job()` entrypoint.
 
-The Streamlit UI is a thin renderer over `evaluate_job()` — it does not
+The Streamlit UI is a thin renderer over `evaluate_job()` - it does not
 recompute scores, re-interpret signals, or call the LLM independently.
 Four grep-tests enforce this so a UI tweak can't silently drift the
 contract.
@@ -249,7 +249,7 @@ Hard filters (applied BEFORE the weighted sum, in this order):
 
 Input quality is checked first on purpose: a dealbreaker inferred from a
 JD the parser couldn't reliably read is itself unreliable, so garbage
-input yields PARSE_FAILURE — never a confident-looking SKIP.
+input yields PARSE_FAILURE - never a confident-looking SKIP.
 
 Otherwise:
 
@@ -263,7 +263,7 @@ apply_score = 100 × ( 0.30 × skills_match
 
 All signals are in `[0, 1]` except `role_level_fit` which is discrete
 `{0, 0.5, 1}`. The weights sum to `1.0` exactly (enforced by a Pydantic
-validator). The weights are **priors, not learned parameters** —
+validator). The weights are **priors, not learned parameters** -
 defensible per row, intentionally not fit to data. They will be retuned
 only when at least 50 real outcomes accumulate.
 
@@ -293,7 +293,7 @@ The LLM contributes in exactly two ways:
    at `0.25`). Capped at 25 points, so it alone cannot reach the 65-point
    APPLY cutoff and cannot override a dealbreaker. It is not
    decision-neutral: the REVIEW and APPLY bands are 15 points each, so on
-   a borderline JD those 25 points can lift the verdict by two steps — a
+   a borderline JD those 25 points can lift the verdict by two steps - a
    score just under 50 (SKIP) reaches APPLY at `llm_confidence = 1.0`.
    The cap is pinned by `test_config.py::TestWeights::test_weights_match_architecture_section_6`
    (`WEIGHTS.llm == 0.25`) and
@@ -308,7 +308,7 @@ The LLM does **not** define the decision boundary, control thresholds,
 override scoring logic, or recompute any signal.
 
 If the LLM call fails (network error, rate limit, timeout, schema
-violation, retry exhausted), the decision still ships — with
+violation, retry exhausted), the decision still ships - with
 `reasoning=None` and `llm_confidence=0.0`. Both failure classes are
 tested: `test_llm_reasoning.py::TestTransportFailures` proves a dead
 network cannot crash an evaluation (each API request is also bounded by
@@ -322,7 +322,7 @@ dealbreaker SKIP verdict.
 ## 6. Evaluation and honest scope
 
 `scripts/evaluate.py` computes precision-of-APPLY, interview rate,
-false-positive rate, and precision-of-PRIORITY — **only when at least
+false-positive rate, and precision-of-PRIORITY - **only when at least
 50 real outcomes are logged**. Below that threshold, the script returns:
 
 ```
@@ -343,7 +343,7 @@ self-imposed constraint is the integrity claim of the project.
   descriptions for one specific candidate (me).
 - Not a recommendation engine. It does not search for jobs; you paste
   the JD in.
-- Not multi-tenant. Single-user by design — a v2 trigger when
+- Not multi-tenant. Single-user by design - a v2 trigger when
   multi-user actually matters.
 - Not a substitute for reading a JD. The REVIEW verdict explicitly
   routes ambiguous cases to human-in-the-loop.
@@ -356,14 +356,14 @@ The above is only credible if the system actually behaves the way the
 spec says. Three layers of evidence in the repo:
 
 - **A 300+ test hermetic suite** covering schemas, the deterministic
-  scorer, the parser (including adversarial extraction cases — prose
+  scorer, the parser (including extraction cases on unstructured JDs - prose
   like "Requirements" must never produce phantom skills), every signal,
   persistence (with append-only contract), the LLM Protocol seam (with
   retry-or-fallback AND transport-failure wrapping), the orchestrator
   end-to-end, and the README contract itself. Runtime: ~5–10 seconds on
   a developer laptop. No network, no model downloads.
 - **Determinism by construction, enforced in tests.** The scorer is a
-  pure function (no I/O imports — grep-tested), the embedding model is
+  pure function (no I/O imports - grep-tested), the embedding model is
   pinned to an exact revision in both the runtime and the Docker
   pre-warm (a test fails if the two pins drift), and same-input →
   same-output is asserted at the extraction, signal, and scorer layers.
@@ -380,8 +380,8 @@ spec says. Three layers of evidence in the repo:
   the tested wheels. Branch protection on `main` enforces the whole
   pipeline.
 
-The README itself is contract-tested — formula values quoted here must
+The README itself is contract-tested - formula values quoted here must
 match `src/config.py` exactly, and both examples' hermetically-computable
-signal values are pinned by `tests/test_demo_example.py` — drift fails
+signal values are pinned by `tests/test_demo_example.py` - drift fails
 CI (the model-dependent `semantic_sim`/`apply_score` are reproduced by
 `python -m scripts.demo_example` rather than test-pinned).
