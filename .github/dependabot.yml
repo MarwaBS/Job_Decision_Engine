@@ -41,3 +41,8 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "chore(docker)"
+    ignore:
+      # 3.12 -> 3.14 is a CPython minor. pandas/the slim image fail to
+      # build on 3.14. Serving pin stays python:3.12-slim-bookworm.
+      - dependency-name: "python"
+        versions: [">=3.13"]
