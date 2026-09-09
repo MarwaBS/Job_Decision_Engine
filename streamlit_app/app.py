@@ -107,8 +107,8 @@ def detect_mode() -> RuntimeMode:
             name="production",
             label="Production",
             banner_kind="success",
-            store_kind="MongoStore (Atlas) — decisions persisted across sessions",
-            reasoner_kind="OpenAIReasoner (gpt-4o) — reasoning panel populated",
+            store_kind="MongoStore (Atlas) - decisions persisted across sessions",
+            reasoner_kind="OpenAIReasoner (gpt-4o) - reasoning panel populated",
             embedding_kind=embedding_kind,
         )
     if has_openai:
@@ -116,8 +116,8 @@ def detect_mode() -> RuntimeMode:
             name="openai_only",
             label="OpenAI + in-memory store",
             banner_kind="info",
-            store_kind="InMemoryStore — session-only; restart loses decisions",
-            reasoner_kind="OpenAIReasoner (gpt-4o) — reasoning panel populated",
+            store_kind="InMemoryStore - session-only; restart loses decisions",
+            reasoner_kind="OpenAIReasoner (gpt-4o) - reasoning panel populated",
             embedding_kind=embedding_kind,
         )
     if has_mongo:
@@ -125,16 +125,16 @@ def detect_mode() -> RuntimeMode:
             name="mongo_only",
             label="Mongo-backed demo (no LLM)",
             banner_kind="warning",
-            store_kind="MongoStore (Atlas) — decisions persisted across sessions",
-            reasoner_kind="LLM disabled — reasoning=None, llm_confidence=0.0; decision still ships",
+            store_kind="MongoStore (Atlas) - decisions persisted across sessions",
+            reasoner_kind="LLM disabled - reasoning=None, llm_confidence=0.0; decision still ships",
             embedding_kind=embedding_kind,
         )
     return RuntimeMode(
         name="demo",
         label="Demo mode",
         banner_kind="warning",
-        store_kind="InMemoryStore — session-only; restart loses decisions",
-        reasoner_kind="LLM disabled — reasoning=None, llm_confidence=0.0; decision still ships",
+        store_kind="InMemoryStore - session-only; restart loses decisions",
+        reasoner_kind="LLM disabled - reasoning=None, llm_confidence=0.0; decision still ships",
         embedding_kind=embedding_kind,
     )
 
@@ -216,7 +216,7 @@ def _build_embedding_provider() -> EmbeddingProvider:
         return provider
     except (RuntimeError, ImportError, OSError) as e:
         st.error(
-            "Embedding provider unavailable — cannot run semantic scoring. "
+            "Embedding provider unavailable - cannot run semantic scoring. "
             "Check that the Docker image built with sentence-transformers "
             "installed and the all-MiniLM-L6-v2 model cached."
         )
@@ -233,7 +233,7 @@ DEMO_PROFILE: CandidateProfile = CandidateProfile(
     name="Demo Candidate (Alex Rivera)",
     summary=(
         "Senior ML engineer with 5+ years of end-to-end experience building "
-        "production ML systems in Python — data engineering, model training, "
+        "production ML systems in Python - data engineering, model training, "
         "SHAP explainability, FastAPI serving, Docker, HuggingFace. "
         "Comfortable across tabular ML, LLM pipelines, and MLOps."
     ),
@@ -312,7 +312,7 @@ def render_header(mode: RuntimeMode, store: Store, reasoner: LLMReasoner) -> Non
             "this session are stored **in memory only** and will be lost "
             "on restart. Scoring is unaffected."
         )
-        store_desc = "InMemoryStore (DEGRADED — Mongo configured but unreachable)"
+        store_desc = "InMemoryStore (DEGRADED - Mongo configured but unreachable)"
     else:
         store_desc = mode.store_kind
 
@@ -327,11 +327,11 @@ def render_header(mode: RuntimeMode, store: Store, reasoner: LLMReasoner) -> Non
         st.warning(
             "**LLM degraded:** OPENAI_API_KEY is set but the OpenAI API is "
             "unreachable or the key is unusable (revoked/unfunded). Reasoning is "
-            "disabled for this session — `reasoning=None`, `llm_confidence=0.0` — "
+            "disabled for this session - `reasoning=None`, `llm_confidence=0.0` - "
             "so the LLM signal (weight 0.25) drops out. The deterministic core is "
             "unaffected."
         )
-        reasoner_desc = "FailingReasoner (DEGRADED — OpenAI configured but unusable)"
+        reasoner_desc = "FailingReasoner (DEGRADED - OpenAI configured but unusable)"
     else:
         reasoner_desc = mode.reasoner_kind
 
@@ -348,9 +348,9 @@ def render_header(mode: RuntimeMode, store: Store, reasoner: LLMReasoner) -> Non
         f"**The deterministic core is identical in every mode.** The four "
         f"deterministic signals (skills, experience, semantic, role) and "
         f"the verdict thresholds never change. What varies with mode: where "
-        f"decisions are saved, and the LLM signal (weight 0.25) — live only "
+        f"decisions are saved, and the LLM signal (weight 0.25) - live only "
         f"when an OpenAI key is present, scored as `llm_confidence = 0.0` "
-        f"otherwise — so scores can differ by up to 25 points between "
+        f"otherwise - so scores can differ by up to 25 points between "
         f"LLM-present and LLM-absent modes."
     )
 
@@ -365,11 +365,11 @@ def render_decision(decision: DecisionResult) -> None:
 
     if decision.apply_score is None:
         # PARSE_FAILURE path: the JD could not be parsed reliably
-        # enough to score, so the score is undefined — render "N/A — parse
+        # enough to score, so the score is undefined - render "N/A - parse
         # failure" rather than misleading users with "0.0/100".
         col_score.metric(
             label="Apply score",
-            value="N/A — parse failure",
+            value="N/A - parse failure",
         )
     else:
         col_score.metric(
@@ -415,7 +415,7 @@ def render_decision(decision: DecisionResult) -> None:
                 f"{decision.weights.semantic:.2f}",
                 f"{decision.weights.llm:.2f}",
                 f"{decision.weights.role:.2f}",
-                "— (hard filter)",
+                "- (hard filter)",
             ],
         }
     )
@@ -450,7 +450,7 @@ def render_decision(decision: DecisionResult) -> None:
     if decision.reasoning is None:
         st.info(
             "No reasoning attached. The LLM was unavailable or its output "
-            "failed schema validation — the decision ships anyway with "
+            "failed schema validation - the decision ships anyway with "
             "llm_confidence = 0.0."
         )
     else:
@@ -517,7 +517,7 @@ def main() -> None:
     profile, profile_degraded = resolve_profile(store)
     if profile_degraded:
         st.warning(
-            "**Profile lookup failed** — the store raised while loading the "
+            "**Profile lookup failed** - the store raised while loading the "
             "active profile. Scoring against the bundled demo profile "
             f"(`{profile.profile_version}`) instead."
         )
@@ -530,9 +530,9 @@ def main() -> None:
             f"- **Seniority:** `{profile.seniority.value}`\n"
             f"- **Experience:** {profile.years_experience} years"
         )
-        st.markdown("**Tech:** " + (", ".join(profile.skills_tech) or "—"))
-        st.markdown("**Tools:** " + (", ".join(profile.skills_tools) or "—"))
-        st.markdown("**Domain:** " + (", ".join(profile.skills_domain) or "—"))
+        st.markdown("**Tech:** " + (", ".join(profile.skills_tech) or "-"))
+        st.markdown("**Tools:** " + (", ".join(profile.skills_tools) or "-"))
+        st.markdown("**Domain:** " + (", ".join(profile.skills_domain) or "-"))
 
     st.subheader("Paste a job description")
     raw_text = st.text_area(

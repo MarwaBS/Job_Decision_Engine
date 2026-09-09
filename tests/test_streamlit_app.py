@@ -83,8 +83,8 @@ def _render_header_script(mode_name: str, reasoner_state: str) -> None:
         name=mode_name,
         label="OpenAI + in-memory store",
         banner_kind="info",
-        store_kind="InMemoryStore — session-only",
-        reasoner_kind="OpenAIReasoner (gpt-4o) — reasoning panel populated",
+        store_kind="InMemoryStore - session-only",
+        reasoner_kind="OpenAIReasoner (gpt-4o) - reasoning panel populated",
         embedding_kind="SentenceTransformer (all-MiniLM-L6-v2)",
     )
     reasoner = FailingReasoner() if reasoner_state == "dead" else MockReasoner()
@@ -127,7 +127,7 @@ def test_banner_reports_live_llm_when_reasoner_works() -> None:
 
 
 def test_render_decision_parse_failure_shows_na_not_zero() -> None:
-    """The PARSE_FAILURE branch must render "N/A — parse failure", not "0.0/100"
+    """The PARSE_FAILURE branch must render "N/A - parse failure", not "0.0/100"
     (an undefined score must not read as a 0% match)."""
     at = AppTest.from_function(
         _render_decision_script,
@@ -136,7 +136,7 @@ def test_render_decision_parse_failure_shows_na_not_zero() -> None:
     ).run()
     assert not at.exception, at.exception
     values = [m.value for m in at.metric]
-    assert any("N/A — parse failure" in v for v in values), values
+    assert any("N/A - parse failure" in v for v in values), values
     assert not any("0.0 / 100" in v for v in values), values
     assert any(v == "PARSE_FAILURE" for v in values), values
 
