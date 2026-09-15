@@ -1,9 +1,9 @@
-"""Semantic similarity signal — `sentence-transformers` with a Protocol seam.
+"""Semantic similarity signal - `sentence-transformers` with a Protocol seam.
 
 A REAL signal, using `sentence-transformers/all-MiniLM-L6-v2`.
 Weight W_semantic = 0.15.
 
-Design — Protocol-based embedding provider:
+Design - Protocol-based embedding provider:
 
 The production path uses `sentence-transformers` (a ~90 MB model-weights
 download on first use; ~175 MB on disk with tokenizer + config). The test path uses `MockEmbeddingProvider` which returns
@@ -16,7 +16,7 @@ specific provider. A production smoke test (not part of the hermetic unit
 tests) verifies the real provider loads and produces sane outputs.
 
 Import strategy: `sentence-transformers` is imported inside
-`SentenceTransformerProvider.__init__`, not at module level — so importing
+`SentenceTransformerProvider.__init__`, not at module level - so importing
 this module is free even on a machine without the library installed.
 """
 
@@ -51,7 +51,7 @@ class MockEmbeddingProvider:
     - Deterministic: `embed("hello")` returns the same vector every time.
     - Non-trivial similarity structure: two similar strings share a prefix
       of the hashed bytes if (and only if) they share a prefix of input
-      characters — so cosine similarity is a smooth function of input
+      characters - so cosine similarity is a smooth function of input
       similarity, enough to exercise the pipeline but not pretend to be
       meaningful.
 
@@ -75,7 +75,7 @@ class MockEmbeddingProvider:
 # Pinned model revision. The semantic signal feeds apply_score, which this
 # project advertises as deterministic (see the docstring of
 # compute_semantic_similarity). Loading the model by name alone pulls whatever
-# revision HuggingFace currently serves on `main` — and that ref moves
+# revision HuggingFace currently serves on `main` - and that ref moves
 # (all-MiniLM-L6-v2 was last updated 2026-06-01), so an upstream model update
 # would silently shift every semantic_similarity, and therefore every verdict,
 # for the same input. Pinning a commit SHA makes the embedding weights
@@ -85,10 +85,10 @@ _MODEL_REVISION = "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
 
 
 class SentenceTransformerProvider:
-    """Production path — `sentence-transformers/all-MiniLM-L6-v2`.
+    """Production path - `sentence-transformers/all-MiniLM-L6-v2`.
 
     Constructed lazily. The model download (~90 MB of weights) only happens when
-    `embed` is first called — which keeps module import cheap. The model
+    `embed` is first called - which keeps module import cheap. The model
     revision is pinned (see ``_MODEL_REVISION``) so embeddings are
     reproducible across upstream model updates.
     """
@@ -135,10 +135,10 @@ def compute_semantic_similarity(
     Args:
         job: Parsed job description.
         profile: Candidate profile with a `summary` field.
-        provider: Embedding provider — REQUIRED. Production callers must
+        provider: Embedding provider - REQUIRED. Production callers must
             construct `SentenceTransformerProvider()`. Tests must construct
             `MockEmbeddingProvider()` directly and pass it in. There is no
-            default — silently falling back to a mock provider in
+            default - silently falling back to a mock provider in
             production would change `semantic_similarity` and therefore
             `apply_score`, violating the deterministic-score invariant
             documented in `streamlit_app/app.py::detect_mode`.
@@ -148,7 +148,7 @@ def compute_semantic_similarity(
         it to [0, 1] by `(cos + 1) / 2` so the signal fits the uniform
         interface the scorer expects.
 
-    The function is pure relative to the provider — for a given
+    The function is pure relative to the provider - for a given
     (provider, job, profile) it is deterministic.
     """
     job_text = _job_to_text(job)
@@ -169,7 +169,7 @@ def _job_to_text(job: ParsedJob) -> str:
     """Collapse a ParsedJob into a single comparable string.
 
     Matches the shape of a candidate summary (title + role focus + skills)
-    rather than dumping raw JD text — the semantic signal should compare
+    rather than dumping raw JD text - the semantic signal should compare
     *what-the-job-is* to *who-the-candidate-is*, not to the JD's boilerplate.
     """
     parts = [job.title]
@@ -186,7 +186,7 @@ def _cosine_similarity(a: tuple[float, ...], b: tuple[float, ...]) -> float:
     """Cosine similarity of two equal-length vectors.
 
     Returns 0.0 if either vector has zero magnitude (avoids division by zero).
-    Raises `ValueError` on dimension mismatch — would signal a provider bug.
+    Raises `ValueError` on dimension mismatch - would signal a provider bug.
     """
     if len(a) != len(b):
         raise ValueError(f"vector dimension mismatch: {len(a)} vs {len(b)}")

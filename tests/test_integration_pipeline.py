@@ -14,7 +14,7 @@ endpoint:
         → DecisionResult with verdict + trace
 
 The LLM signal is stubbed with a fixed value because Step 4 is where the
-LLM layer lands. That stub does NOT violate the integrity claim — it's an
+LLM layer lands. That stub does NOT violate the integrity claim - it's an
 explicit Step-4 seam, documented as such.
 """
 
@@ -72,7 +72,7 @@ On-site only.
 def _alex_rivera_profile() -> CandidateProfile:
     """A stable synthetic candidate profile used across the integration tests.
 
-    A representative senior ML-engineer persona — Python / PyTorch / AWS +
+    A representative senior ML-engineer persona - Python / PyTorch / AWS +
     MLOps background, 5.5 years of experience. Synthetic; not a real person.
     """
     return CandidateProfile(
@@ -100,7 +100,7 @@ def _build_signals(
 ) -> Signals:
     """Compose the full Signals object from the raw JD.
 
-    `llm_confidence` and `role_level_fit` are parameters — the LLM layer
+    `llm_confidence` and `role_level_fit` are parameters - the LLM layer
     lands in Step 4 and the role-level matcher is part of the Step 4
     orchestrator. Until then, this integration test passes them as
     explicit inputs so the test is hermetic.
@@ -146,7 +146,7 @@ class TestStrongMatchEndToEnd:
             llm_confidence=0.5,
             role_level_fit=1.0,
         )
-        # Profile has python, pytorch, aws, mlops, docker — JD required has
+        # Profile has python, pytorch, aws, mlops, docker - JD required has
         # python, pytorch, aws, mlops, kubernetes, docker → 5/6 match.
         # Preferred has langchain, llm → profile has llm (1/2).
         # numerator: 5 + 0.5 = 5.5. denominator: 6 + 1 = 7. = 0.785...

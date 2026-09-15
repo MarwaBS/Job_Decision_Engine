@@ -12,7 +12,7 @@ Role: PRESENTATION LAYER ONLY. Per Step 5 hard rules:
   caches decisions or signal values.
 
 Startup modes (each mode changes persistence and whether the LLM
-signal is live — both surfaced in the boot banner):
+signal is live - both surfaced in the boot banner):
 
     OPENAI_API_KEY present   + MONGODB_URI present        -> "Production"
     OPENAI_API_KEY present   + MONGODB_URI absent         -> "OpenAI + in-memory store"
@@ -27,15 +27,15 @@ deterministic signals cannot drift between deployments):
     are identical in every mode. Two things legitimately vary with
     mode:
 
-    1. Persistence layer — decisions saved to Atlas vs session-only.
+    1. Persistence layer - decisions saved to Atlas vs session-only.
        Same scoring either way.
     2. The LLM signal (weight 0.25). With OPENAI_API_KEY absent, the
-       LLM-absent path scores llm_confidence=0.0 — deterministically.
+       LLM-absent path scores llm_confidence=0.0 - deterministically.
        With a key present, live LLM output feeds `score()`, so
        `apply_score` can shift by up to 25 points (and the verdict can
        change) relative to the LLM-absent path. That zero IS the
        scored value in LLM-absent deployments; the LLM is never a
-       hidden free parameter — which path is live is always shown in
+       hidden free parameter - which path is live is always shown in
        the mode banner.
 
 The mock embedding provider from `src.signals.semantic` exists for
@@ -66,7 +66,7 @@ from src.signals.semantic import (
 )
 
 # IMPORTANT: set_page_config MUST be the first Streamlit command invoked by
-# this module — Streamlit re-executes the script on every interaction and the
+# this module - Streamlit re-executes the script on every interaction and the
 # rule is "first st.* call wins". The src imports above are plain Python with
 # no st.* calls, so set_page_config remains the first Streamlit command.
 # Moving this inside a function that runs after cache_resource decorators
@@ -96,7 +96,7 @@ def detect_mode() -> RuntimeMode:
     has_openai = bool(os.getenv("OPENAI_API_KEY"))
     has_mongo = bool(os.getenv("MONGODB_URI"))
 
-    # Embedding provider is ALWAYS the real SentenceTransformer — mock
+    # Embedding provider is ALWAYS the real SentenceTransformer - mock
     # embeddings produce different semantic_similarity values and would
     # change scoring across modes. Docker image pre-downloads the model
     # at build time so this is always available in the HF Space.
@@ -107,8 +107,8 @@ def detect_mode() -> RuntimeMode:
             name="production",
             label="Production",
             banner_kind="success",
-            store_kind="MongoStore (Atlas) — decisions persisted across sessions",
-            reasoner_kind="OpenAIReasoner (gpt-4o) — reasoning panel populated",
+            store_kind="MongoStore (Atlas) - decisions persisted across sessions",
+            reasoner_kind="OpenAIReasoner (gpt-4o) - reasoning panel populated",
             embedding_kind=embedding_kind,
         )
     if has_openai:
@@ -116,8 +116,8 @@ def detect_mode() -> RuntimeMode:
             name="openai_only",
             label="OpenAI + in-memory store",
             banner_kind="info",
-            store_kind="InMemoryStore — session-only; restart loses decisions",
-            reasoner_kind="OpenAIReasoner (gpt-4o) — reasoning panel populated",
+            store_kind="InMemoryStore - session-only; restart loses decisions",
+            reasoner_kind="OpenAIReasoner (gpt-4o) - reasoning panel populated",
             embedding_kind=embedding_kind,
         )
     if has_mongo:
@@ -125,16 +125,16 @@ def detect_mode() -> RuntimeMode:
             name="mongo_only",
             label="Mongo-backed demo (no LLM)",
             banner_kind="warning",
-            store_kind="MongoStore (Atlas) — decisions persisted across sessions",
-            reasoner_kind="LLM disabled — reasoning=None, llm_confidence=0.0; decision still ships",
+            store_kind="MongoStore (Atlas) - decisions persisted across sessions",
+            reasoner_kind="LLM disabled - reasoning=None, llm_confidence=0.0; decision still ships",
             embedding_kind=embedding_kind,
         )
     return RuntimeMode(
         name="demo",
         label="Demo mode",
         banner_kind="warning",
-        store_kind="InMemoryStore — session-only; restart loses decisions",
-        reasoner_kind="LLM disabled — reasoning=None, llm_confidence=0.0; decision still ships",
+        store_kind="InMemoryStore - session-only; restart loses decisions",
+        reasoner_kind="LLM disabled - reasoning=None, llm_confidence=0.0; decision still ships",
         embedding_kind=embedding_kind,
     )
 
@@ -146,7 +146,7 @@ def detect_mode() -> RuntimeMode:
 def _build_store(mode_name: str) -> Store:
     """Build the persistence layer for the detected mode.
 
-    If Mongo is configured but unreachable, fall back to `InMemoryStore` —
+    If Mongo is configured but unreachable, fall back to `InMemoryStore` -
     but NEVER silently: `main()` compares the store actually built against
     the mode banner and renders a visible degradation warning, so the UI
     never claims "persisted to Atlas" while writing to memory.
@@ -165,7 +165,7 @@ def _build_reasoner(mode_name: str) -> LLMReasoner:
 
     `detect_mode` only saw that OPENAI_API_KEY is *present*. A present-but-dead
     key (revoked, unfunded, typo'd) constructs an `OpenAIReasoner` fine and then
-    fails on the first real `reason()` — which is exactly how the live demo's
+    fails on the first real `reason()` - which is exactly how the live demo's
     banner claimed "reasoning panel populated" while every request returned
     "LLM unavailable". So we `verify_live()` (a cheap models.list ping) here at
     boot: any failure → `FailingReasoner`, whose effect (reasoning=None,
@@ -185,11 +185,11 @@ def _build_reasoner(mode_name: str) -> LLMReasoner:
 
 @st.cache_resource
 def _build_embedding_provider() -> EmbeddingProvider:
-    """Always return the real SentenceTransformer — fail loudly if not.
+    """Always return the real SentenceTransformer - fail loudly if not.
 
     NEVER falls back to a hash-based mock provider. Mock embeddings
     differ from the real model's output, so using them in the UI would
-    change `semantic_similarity` and therefore `apply_score` — violating
+    change `semantic_similarity` and therefore `apply_score` - violating
     the deterministic-score invariant across deployment modes. The
     Docker image pre-downloads the model at build time, so in the HF
     Space runtime this is always available.
@@ -203,11 +203,11 @@ def _build_embedding_provider() -> EmbeddingProvider:
     sentence-transformers import + model deserialization to happen here,
     rather than at the first user "Evaluate" click. This matches the
     `_build_store` / `_build_reasoner` try/except shape, but with no
-    silent fallback — the embedding provider is load-bearing for
+    silent fallback - the embedding provider is load-bearing for
     scoring, unlike the store (persistence) or reasoner (explanation).
 
     For hermetic tests, individual tests construct a mock provider
-    directly and pass it into signal / orchestrator calls — this UI
+    directly and pass it into signal / orchestrator calls - this UI
     helper is not used in tests.
     """
     try:
@@ -216,13 +216,13 @@ def _build_embedding_provider() -> EmbeddingProvider:
         return provider
     except (RuntimeError, ImportError, OSError) as e:
         st.error(
-            "Embedding provider unavailable — cannot run semantic scoring. "
+            "Embedding provider unavailable - cannot run semantic scoring. "
             "Check that the Docker image built with sentence-transformers "
             "installed and the all-MiniLM-L6-v2 model cached."
         )
         st.exception(e)
         st.stop()
-        raise  # unreachable; st.stop() raises StopException — kept for type-checker
+        raise  # unreachable; st.stop() raises StopException - kept for type-checker
 
 
 # ── Profile resolution (Mongo first, demo fallback) ──────────────────────────
@@ -233,7 +233,7 @@ DEMO_PROFILE: CandidateProfile = CandidateProfile(
     name="Demo Candidate (Alex Rivera)",
     summary=(
         "Senior ML engineer with 5+ years of end-to-end experience building "
-        "production ML systems in Python — data engineering, model training, "
+        "production ML systems in Python - data engineering, model training, "
         "SHAP explainability, FastAPI serving, Docker, HuggingFace. "
         "Comfortable across tabular ML, LLM pipelines, and MLOps."
     ),
@@ -274,7 +274,7 @@ DEMO_PROFILE: CandidateProfile = CandidateProfile(
 def resolve_profile(store: Store) -> tuple[CandidateProfile, bool]:
     """Prefer a store-resident active profile; fall back to the demo.
 
-    Returns `(profile, degraded)` — `degraded=True` means the store lookup
+    Returns `(profile, degraded)` - `degraded=True` means the store lookup
     RAISED (as opposed to cleanly finding no active profile) and the demo
     profile was substituted. The caller renders a visible warning in that
     case; swallowing the failure silently would score the JD against a
@@ -288,7 +288,7 @@ def resolve_profile(store: Store) -> tuple[CandidateProfile, bool]:
     return from_store or DEMO_PROFILE, False
 
 
-# ── UI renderers (pure — they read a DecisionResult and write Streamlit) ────
+# ── UI renderers (pure - they read a DecisionResult and write Streamlit) ────
 
 
 def render_header(mode: RuntimeMode, store: Store, reasoner: LLMReasoner) -> None:
@@ -301,7 +301,7 @@ def render_header(mode: RuntimeMode, store: Store, reasoner: LLMReasoner) -> Non
 
     # The banner reports the store that was ACTUALLY built, not the one the
     # env vars implied. If Mongo was configured but the connection failed at
-    # boot, the fallback to InMemoryStore is surfaced loudly here — the UI
+    # boot, the fallback to InMemoryStore is surfaced loudly here - the UI
     # must never claim persistence it doesn't have.
     mongo_expected = mode.name in ("production", "mongo_only")
     store_is_memory = isinstance(store, InMemoryStore)
@@ -312,13 +312,13 @@ def render_header(mode: RuntimeMode, store: Store, reasoner: LLMReasoner) -> Non
             "this session are stored **in memory only** and will be lost "
             "on restart. Scoring is unaffected."
         )
-        store_desc = "InMemoryStore (DEGRADED — Mongo configured but unreachable)"
+        store_desc = "InMemoryStore (DEGRADED - Mongo configured but unreachable)"
     else:
         store_desc = mode.store_kind
 
     # Same discipline for the LLM: report the reasoner ACTUALLY built. A present
     # but dead OpenAI key degrades to FailingReasoner (verify_live failed at
-    # boot); the banner must not keep claiming "reasoning panel populated" — that
+    # boot); the banner must not keep claiming "reasoning panel populated" - that
     # exact self-contradiction (banner says gpt-4o live, every request returns
     # "LLM unavailable") is what shipped on the demo.
     llm_expected = mode.name in ("production", "openai_only")
@@ -327,11 +327,11 @@ def render_header(mode: RuntimeMode, store: Store, reasoner: LLMReasoner) -> Non
         st.warning(
             "**LLM degraded:** OPENAI_API_KEY is set but the OpenAI API is "
             "unreachable or the key is unusable (revoked/unfunded). Reasoning is "
-            "disabled for this session — `reasoning=None`, `llm_confidence=0.0` — "
+            "disabled for this session - `reasoning=None`, `llm_confidence=0.0` - "
             "so the LLM signal (weight 0.25) drops out. The deterministic core is "
             "unaffected."
         )
-        reasoner_desc = "FailingReasoner (DEGRADED — OpenAI configured but unusable)"
+        reasoner_desc = "FailingReasoner (DEGRADED - OpenAI configured but unusable)"
     else:
         reasoner_desc = mode.reasoner_kind
 
@@ -348,15 +348,15 @@ def render_header(mode: RuntimeMode, store: Store, reasoner: LLMReasoner) -> Non
         f"**The deterministic core is identical in every mode.** The four "
         f"deterministic signals (skills, experience, semantic, role) and "
         f"the verdict thresholds never change. What varies with mode: where "
-        f"decisions are saved, and the LLM signal (weight 0.25) — live only "
+        f"decisions are saved, and the LLM signal (weight 0.25) - live only "
         f"when an OpenAI key is present, scored as `llm_confidence = 0.0` "
-        f"otherwise — so scores can differ by up to 25 points between "
+        f"otherwise - so scores can differ by up to 25 points between "
         f"LLM-present and LLM-absent modes."
     )
 
 
 def render_decision(decision: DecisionResult) -> None:
-    """Render a DecisionResult. No calculations — fields are read straight."""
+    """Render a DecisionResult. No calculations - fields are read straight."""
     trace = decision.decision_trace
     signals = decision.signals
 
@@ -365,11 +365,11 @@ def render_decision(decision: DecisionResult) -> None:
 
     if decision.apply_score is None:
         # PARSE_FAILURE path: the JD could not be parsed reliably
-        # enough to score, so the score is undefined — render "N/A — parse
+        # enough to score, so the score is undefined - render "N/A - parse
         # failure" rather than misleading users with "0.0/100".
         col_score.metric(
             label="Apply score",
-            value="N/A — parse failure",
+            value="N/A - parse failure",
         )
     else:
         col_score.metric(
@@ -415,7 +415,7 @@ def render_decision(decision: DecisionResult) -> None:
                 f"{decision.weights.semantic:.2f}",
                 f"{decision.weights.llm:.2f}",
                 f"{decision.weights.role:.2f}",
-                "— (hard filter)",
+                "- (hard filter)",
             ],
         }
     )
@@ -450,7 +450,7 @@ def render_decision(decision: DecisionResult) -> None:
     if decision.reasoning is None:
         st.info(
             "No reasoning attached. The LLM was unavailable or its output "
-            "failed schema validation — the decision ships anyway with "
+            "failed schema validation - the decision ships anyway with "
             "llm_confidence = 0.0."
         )
     else:
@@ -494,7 +494,7 @@ def main() -> None:
     # is dead), not the one the mere presence of the key implied.
     reasoner = _build_reasoner(mode.name)
 
-    # Structured startup log — one line per session recording WHAT actually
+    # Structured startup log - one line per session recording WHAT actually
     # booted (mode + the store/reasoner truly built, incl. any degradation), so
     # an operator can answer "what is live?" from the logs, not just the UI.
     if not st.session_state.get("_startup_logged"):
@@ -517,7 +517,7 @@ def main() -> None:
     profile, profile_degraded = resolve_profile(store)
     if profile_degraded:
         st.warning(
-            "**Profile lookup failed** — the store raised while loading the "
+            "**Profile lookup failed** - the store raised while loading the "
             "active profile. Scoring against the bundled demo profile "
             f"(`{profile.profile_version}`) instead."
         )
@@ -530,9 +530,9 @@ def main() -> None:
             f"- **Seniority:** `{profile.seniority.value}`\n"
             f"- **Experience:** {profile.years_experience} years"
         )
-        st.markdown("**Tech:** " + (", ".join(profile.skills_tech) or "—"))
-        st.markdown("**Tools:** " + (", ".join(profile.skills_tools) or "—"))
-        st.markdown("**Domain:** " + (", ".join(profile.skills_domain) or "—"))
+        st.markdown("**Tech:** " + (", ".join(profile.skills_tech) or "-"))
+        st.markdown("**Tools:** " + (", ".join(profile.skills_tools) or "-"))
+        st.markdown("**Domain:** " + (", ".join(profile.skills_domain) or "-"))
 
     st.subheader("Paste a job description")
     raw_text = st.text_area(
@@ -548,7 +548,7 @@ def main() -> None:
     if evaluate_clicked:
         # The LLM layer already degrades gracefully inside evaluate_job
         # (LLMReasoningFailed → reasoning=None). Anything that still
-        # escapes — e.g. the persistence layer failing mid-evaluation —
+        # escapes - e.g. the persistence layer failing mid-evaluation -
         # is rendered as a clean, actionable error instead of a raw
         # stack trace taking over the page.
         try:
@@ -560,7 +560,7 @@ def main() -> None:
                     reasoner=reasoner,
                     embedding_provider=embedding_provider,
                 )
-        except Exception as e:  # noqa: BLE001 — presentation-layer boundary
+        except Exception as e:  # noqa: BLE001 - presentation-layer boundary
             st.error(
                 "Evaluation failed before a decision could be persisted. "
                 "Nothing was saved. The most common cause is the store "

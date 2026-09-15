@@ -72,7 +72,7 @@ class TestExperienceMatch:
         assert a == b
 
     def test_significant_overqualification_still_scores_one(self):
-        """Over-qualification is NOT penalised in the deterministic signal — it is
+        """Over-qualification is NOT penalised in the deterministic signal - it is
         left to the LLM's "risks" output (see module docstring). A 4x-experienced
         candidate still scores 1.0, not a reduced value."""
         assert compute_experience_match(_job(5.0), _profile(20.0)) == 1.0

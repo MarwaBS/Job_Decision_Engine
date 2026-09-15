@@ -1,4 +1,4 @@
-"""Reproduce the README's Example A and Example B end-to-end — no API key,
+"""Reproduce the README's Example A and Example B end-to-end - no API key,
 no database.
 
 Every number quoted in the README's example blocks is the output of this
@@ -12,7 +12,7 @@ What runs:
 - the REAL pinned sentence-transformer for semantic similarity
   (requires `sentence-transformers` from requirements.txt; first run
   downloads the pinned model revision),
-- the LLM-absent path (`llm_confidence = 0.0`) — the same path the public
+- the LLM-absent path (`llm_confidence = 0.0`) - the same path the public
   demo runs without an OpenAI key, and the reason this script is fully
   deterministic: same input → same score, every run, every machine.
 
@@ -28,7 +28,7 @@ from src.llm.reasoning import FailingReasoner
 from src.schemas import CandidateProfile, Seniority
 from src.signals.semantic import SentenceTransformerProvider
 
-#: The unstructured prose JD behind README Example A — verbatim. No labeled
+#: The unstructured prose JD behind README Example A - verbatim. No labeled
 #: headers, no years figure, no workplace cue: exactly the JD shape the
 #: parse-confidence hard filter exists for. Structure recovered: a seniority
 #: keyword (0.10) and three taxonomy skills (0.20 + 0.15) = 0.45, below the
@@ -43,7 +43,7 @@ research, product, and infrastructure teams to bring new capabilities to
 market.
 """
 
-#: The structured JD behind README Example B — verbatim.
+#: The structured JD behind README Example B - verbatim.
 EXAMPLE_B_JD = """\
 Title: Senior ML Engineer
 Company: Acme AI
@@ -62,14 +62,14 @@ Nice to have:
 - RAG pipelines
 """
 
-#: The profile the README narrative scores against — mirrors the bundled
+#: The profile the README narrative scores against - mirrors the bundled
 #: demo profile in `streamlit_app/app.py` (Alex Rivera).
 EXAMPLE_PROFILE = CandidateProfile(
     profile_version="demo-1.0",
     name="Demo Candidate (Alex Rivera)",
     summary=(
         "Senior ML engineer with 5+ years of end-to-end experience building "
-        "production ML systems in Python — data engineering, model training, "
+        "production ML systems in Python - data engineering, model training, "
         "SHAP explainability, FastAPI serving, Docker, HuggingFace. "
         "Comfortable across tabular ML, LLM pipelines, and MLOps."
     ),
@@ -99,11 +99,11 @@ def main() -> int:
         reasoner=FailingReasoner(),
         embedding_provider=provider,
     )
-    print("README Example A — reproduced from source (prose JD)")
+    print("README Example A - reproduced from source (prose JD)")
     print(f"engine_version:    {decision_a.engine_version}")
     print(f"parse_confidence:  {decision_a.signals.parse_confidence:.2f}")
     print(f"verdict:           {decision_a.verdict.value}")
-    score_a = "None (undefined — JD could not be parsed)"
+    score_a = "None (undefined - JD could not be parsed)"
     if decision_a.apply_score is not None:
         score_a = f"{decision_a.apply_score:.1f}"
     print(f"apply_score:       {score_a}")
@@ -119,13 +119,13 @@ def main() -> int:
         embedding_provider=provider,
     )
     s = decision.signals
-    print("README Example B — reproduced from source (LLM-absent mode)")
+    print("README Example B - reproduced from source (LLM-absent mode)")
     print(f"engine_version:    {decision.engine_version}")
     print(f"parse_confidence:  {s.parse_confidence:.2f}")
     print(f"skills_match:      {s.skills_match:.3f}")
     print(f"experience_match:  {s.experience_match:.3f}")
     print(f"semantic_sim:      {s.semantic_similarity:.3f}")
-    print(f"llm_confidence:    {s.llm_confidence:.3f}   (no API key — LLM-absent path)")
+    print(f"llm_confidence:    {s.llm_confidence:.3f}   (no API key - LLM-absent path)")
     print(f"role_level_fit:    {s.role_level_fit:.3f}")
     print(f"apply_score:       {decision.apply_score:.1f}")
     print(f"verdict:           {decision.verdict.value}")

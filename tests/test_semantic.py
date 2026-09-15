@@ -1,6 +1,6 @@
 """Tests for the semantic-similarity signal.
 
-All tests use `MockEmbeddingProvider` — no model download, no network, fast.
+All tests use `MockEmbeddingProvider` - no model download, no network, fast.
 The `SentenceTransformerProvider` is exercised by a separate integration
 smoke test that is NOT part of the hermetic unit suite.
 """
@@ -38,7 +38,7 @@ def _job(
 
 class TestProviderProtocol:
     def test_mock_provider_is_an_embedding_provider(self):
-        """runtime_checkable Protocol — mock must satisfy the interface."""
+        """runtime_checkable Protocol - mock must satisfy the interface."""
         m = MockEmbeddingProvider()
         assert isinstance(m, EmbeddingProvider)
 
@@ -132,7 +132,7 @@ class TestSemanticSimilarity:
 
     def test_dimension_mismatch_raises(self):
         """A provider that returns inconsistent dimensions between calls is
-        a bug — surface it, don't silently pass."""
+        a bug - surface it, don't silently pass."""
 
         class BadProvider:
             def __init__(self):
@@ -192,7 +192,7 @@ class TestRevisionPinning:
 
     def test_provider_passes_pinned_revision_to_sentence_transformer(self, monkeypatch):
         """Hermetic: inject a fake sentence_transformers module and assert
-        the lazy constructor receives the pinned revision — pinning that
+        the lazy constructor receives the pinned revision - pinning that
         exists in source but never reaches the library is no pin at all."""
         import sys
         import types
@@ -223,8 +223,8 @@ class TestRevisionPinning:
         """The Docker build pre-warms the model cache BEFORE the source tree
         is copied (layer caching), so it hardcodes the revision. If it
         drifts from src/signals/semantic.py::_MODEL_REVISION, every cold
-        start silently re-downloads the pinned snapshot — defeating the
-        pre-warm — or worse, serves a different model than advertised."""
+        start silently re-downloads the pinned snapshot - defeating the
+        pre-warm - or worse, serves a different model than advertised."""
         from pathlib import Path
 
         from src.signals.semantic import _MODEL_REVISION

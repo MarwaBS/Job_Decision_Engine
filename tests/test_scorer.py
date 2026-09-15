@@ -176,7 +176,7 @@ class TestHardFilters:
         """When both hard filters would fire, PARSE_FAILURE wins over SKIP.
 
         A dealbreaker inferred from a JD the parser could not reliably read
-        is itself unreliable — letting it fire would convert garbage input
+        is itself unreliable - letting it fire would convert garbage input
         into a confident SKIP. Input quality is checked first; the verdict
         for unparseable input is PARSE_FAILURE with apply_score=None.
         """
@@ -311,11 +311,11 @@ class TestVerdictBoundaries:
         assert r.verdict == expected_verdict
 
     def test_score_exactly_on_a_boundary_takes_the_gte_branch(self):
-        """A score EXACTLY equal to a threshold must take the ``>=`` branch —
+        """A score EXACTLY equal to a threshold must take the ``>=`` branch -
         the HIGHER verdict of the pair the boundary separates.
 
-        The previous boundary test constructed 82.0 — two points ABOVE the
-        priority cutoff — and asserted ``score >= priority``. That is true under
+        The previous boundary test constructed 82.0 - two points ABOVE the
+        priority cutoff - and asserted ``score >= priority``. That is true under
         both ``>=`` and ``>``, so mutating any comparison in ``_score_to_verdict``
         from ``>=`` to ``>`` survived it: the "boundary" was never actually on a
         boundary. (Its own docstring gave up trying to construct 80.0 exactly and
@@ -324,7 +324,7 @@ class TestVerdictBoundaries:
         Here the score sits ON each boundary by construction: take the exact
         float the scorer produces (no hand arithmetic → no float drift), then set
         the threshold to precisely that value. ``>=`` yields the higher verdict;
-        ``>`` would drop to the lower one — so this kills the ``>=``→``>``
+        ``>`` would drop to the lower one - so this kills the ``>=``→``>``
         mutation at each of the three cutoffs (scorer.py priority/apply/review).
         """
         signals = Signals(
@@ -355,7 +355,7 @@ class TestVerdictBoundaries:
             assert r.apply_score == exact  # unchanged by thresholds; on the boundary
             assert r.verdict == expected, (
                 f"score {exact} exactly on a boundary must be {expected} (>= branch), "
-                f"got {r.verdict} — a >=→> regression at that cutoff"
+                f"got {r.verdict} - a >=→> regression at that cutoff"
             )
 
     def test_just_below_priority_is_apply(self):

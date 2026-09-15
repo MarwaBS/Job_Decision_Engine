@@ -1,4 +1,4 @@
-# Job Decision Engine — pinned DIRECT runtime dependencies.
+# Job Decision Engine - pinned DIRECT runtime dependencies.
 #
 # Direct pins are exact (==) per the lesson from the sibling
 # nyc-real-estate-predictor project: loading pickled / trained artefacts
@@ -7,7 +7,7 @@
 # Scope honesty: this file pins the DIRECT dependencies only. The full
 # transitive universe (every wheel the image actually ships) is locked in
 # requirements-lock.txt and applied as a pip constraints file by the
-# Dockerfile and both CI install steps — without it, transitives float at
+# Dockerfile and both CI install steps - without it, transitives float at
 # build time (which is how starlette 1.2.1 / PYSEC-2026-248/249 once
 # reached the deployed set). Contract enforced by
 # tests/test_requirements_lock.py; the lock is pip-audited in CI.
@@ -19,12 +19,12 @@
 #   4. bump a version only when all tests are green, then regenerate
 #      requirements-lock.txt (instructions in its header).
 
-# ── Data contracts (Step 2 — core kernel) ────────────────────────────────────
+# ── Data contracts (Step 2 - core kernel) ────────────────────────────────────
 pydantic==2.13.3
 
 # ── Semantic similarity signal (Step 3) ──────────────────────────────────────
 # Lazy-imported inside SentenceTransformerProvider. Tests use the mock
-# provider and do NOT need this installed — keeps CI fast and hermetic.
+# provider and do NOT need this installed - keeps CI fast and hermetic.
 sentence-transformers==5.4.1
 
 # ── Persistence layer (Step 4) ───────────────────────────────────────────────
@@ -42,7 +42,7 @@ openai==2.37.0
 pyyaml==6.0.3
 
 # ── UI (Step 5) ──────────────────────────────────────────────────────────────
-# Required at install-time even for the test suite — tests/test_app_smoke.py
+# Required at install-time even for the test suite - tests/test_app_smoke.py
 # imports streamlit_app/app.py which does `import streamlit as st` at module
 # top level. Pin matches a recent stable release; HF Space builds the same
 # version into the Docker image.

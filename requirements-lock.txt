@@ -1,9 +1,9 @@
-# Job Decision Engine — FULL transitive dependency lock.
+# Job Decision Engine - FULL transitive dependency lock.
 #
 # requirements.txt pins the DIRECT dependencies exactly (==). This file
 # locks the entire transitive universe (every wheel that ends up in the
-# shipped image), so a transitive release can never silently change — or
-# re-introduce a vulnerability into — what was tested.
+# shipped image), so a transitive release can never silently change - or
+# re-introduce a vulnerability into - what was tested.
 #
 # Why this exists: the deployed set
 # once carried starlette 1.2.1 (PYSEC-2026-248 / PYSEC-2026-249, fixed in
@@ -16,10 +16,10 @@
 #
 # Consumed as a pip CONSTRAINTS file everywhere installs happen:
 #   pip install -r requirements.txt -c requirements-lock.txt
-# (Dockerfile + both CI install steps — the shipped image and the tested
+# (Dockerfile + both CI install steps - the shipped image and the tested
 # universe are the same set.)
 #
-# How to regenerate (universal, cross-platform markers, Python 3.12 —
+# How to regenerate (universal, cross-platform markers, Python 3.12 -
 # the version in the Dockerfile base image and CI):
 #   uv pip compile requirements.txt --universal --python-version 3.12 \
 #       --no-header --annotation-style=line -o requirements-lock.txt

@@ -1,4 +1,4 @@
-"""Experience-match signal — pure function.
+"""Experience-match signal - pure function.
 
 A REAL signal. Weight W_experience = 0.20.
 
@@ -9,7 +9,7 @@ Design:
 
 - If the job doesn't specify `years_required`, the signal is **1.0**. Rationale:
   the JD didn't make a hard claim we can measure against, so we don't
-  penalise. This is intentional — penalising for missing data would
+  penalise. This is intentional - penalising for missing data would
   incentivise the parser to invent values.
 - If the candidate has ≥ required years → **1.0**.
 - If the candidate has fewer years → linear fall-off with a floor at 0.0.

@@ -1,4 +1,4 @@
-"""MongoDB layer — connection abstraction + collection accessors.
+"""MongoDB layer - connection abstraction + collection accessors.
 
 This module is the ONLY place in the project that talks to pymongo. All
 higher layers depend on the `Store` Protocol, never on pymongo directly.
@@ -14,15 +14,15 @@ to Mongo, nothing more.
 
 Append-only contract:
 
-- `decisions` — `insert_decision` only. No update, no replace, no delete.
-- `outcomes` — `insert_outcome` OR `push_outcome_stage` / `set_outcome_final_stage`
+- `decisions` - `insert_decision` only. No update, no replace, no delete.
+- `outcomes` - `insert_outcome` OR `push_outcome_stage` / `set_outcome_final_stage`
   for the state-machine path. Hard rule: a document's `stages[]` only grows;
   `final_stage` transitions only from None → terminal.
-- `feedback_logs` — append-only.
-- `profiles` — `upsert_profile` (per-version doc). Versioned means new
+- `feedback_logs` - append-only.
+- `profiles` - `upsert_profile` (per-version doc). Versioned means new
   versions write new docs, they do not overwrite. At most one doc is
-  `active` — enforced in Mongo by a partial unique index.
-- `jobs` — upsert by `content_hash`. Same content → same doc — enforced
+  `active` - enforced in Mongo by a partial unique index.
+- `jobs` - upsert by `content_hash`. Same content → same doc - enforced
   in Mongo by a unique index. No mutation of the `parsed` payload after
   creation.
 """
@@ -53,7 +53,7 @@ class Store(Protocol):
     No method here mutates a previously-inserted `decision` document.
     """
 
-    # Profiles (upsert by version — new version = new doc)
+    # Profiles (upsert by version - new version = new doc)
     def upsert_profile(self, profile: CandidateProfile) -> str: ...
 
     def get_active_profile(self) -> CandidateProfile | None: ...
@@ -66,7 +66,7 @@ class Store(Protocol):
 
     def list_decisions(self, limit: int = 100) -> list[dict[str, Any]]: ...
 
-    # Outcomes (state machine — insert once per decision, then push stages)
+    # Outcomes (state machine - insert once per decision, then push stages)
     def insert_outcome(self, outcome: Outcome) -> str: ...
 
     def push_outcome_stage(self, decision_id: str, stage: OutcomeStage) -> None: ...
@@ -122,7 +122,7 @@ class InMemoryStore:
     def upsert_profile(self, profile: CandidateProfile) -> str:
         doc = profile.model_dump(mode="json")
         # If a doc for the same profile_version exists, replace it in-place
-        # (this is "upsert by version" — not a mutation of a DIFFERENT version).
+        # (this is "upsert by version" - not a mutation of a DIFFERENT version).
         # If a *new* profile_version is being written, deactivate the old active.
         if doc.get("active"):
             for existing in self._collections["profiles"]:
@@ -171,7 +171,7 @@ class InMemoryStore:
     def push_outcome_stage(self, decision_id: str, stage: OutcomeStage) -> None:
         """Append a stage to an existing outcome document.
 
-        `stages[]` is strictly growing — no reorder, no removal. This is
+        `stages[]` is strictly growing - no reorder, no removal. This is
         the only form of "outcome mutation" allowed.
         """
         doc = self._find_outcome_by_decision_id(decision_id)
@@ -180,7 +180,7 @@ class InMemoryStore:
     def set_outcome_final_stage(self, decision_id: str, final_stage: str) -> None:
         """Set the terminal `final_stage`. Allowed to set once (None → value).
 
-        Refuses to overwrite a non-None final_stage — that would be a
+        Refuses to overwrite a non-None final_stage - that would be a
         retroactive "fix" of a closed outcome, explicitly banned.
         """
         doc = self._find_outcome_by_decision_id(decision_id)
@@ -249,14 +249,14 @@ class MongoStore:
         # boot-time failure degrades uniformly to a RuntimeError that
         # `_build_store` catches. Two distinct failure classes live here:
         #
-        #   1. A malformed connection string fails at CONSTRUCTION — pymongo
+        #   1. A malformed connection string fails at CONSTRUCTION - pymongo
         #      raises `InvalidURI`/`ConfigurationError` (both `PyMongoError`)
         #      or a plain `ValueError` for an unparseable host. These must not
         #      escape raw, or `_build_store`'s `except RuntimeError` is bypassed
         #      and the whole app crashes instead of falling back to in-memory.
         #   2. A well-formed URI to an unreachable Atlas (paused cluster, IP
         #      not allow-listed, stale credential) CONSTRUCTS cleanly because
-        #      `MongoClient` connects lazily — it only fails when a real
+        #      `MongoClient` connects lazily - it only fails when a real
         #      operation runs. The explicit `ping` forces that operation now,
         #      bounded by `serverSelectionTimeoutMS` (~5s vs pymongo's 30s
         #      default) so a degraded boot is fast, not a long hang.
@@ -290,7 +290,7 @@ class MongoStore:
 
     def upsert_profile(self, profile: CandidateProfile) -> str:
         doc = profile.model_dump(mode="json")
-        # Deactivate the old active, then activate the new — two ops, not a
+        # Deactivate the old active, then activate the new - two ops, not a
         # transaction. The partial unique index on `active` turns a racing
         # double-activation into a duplicate-key error, not two active rows.
         if doc.get("active"):
@@ -335,7 +335,7 @@ class MongoStore:
         )
         if found is None:
             # Unreachable by Mongo semantics (upsert + AFTER always returns
-            # the doc) — but the driver types it Optional, so fail loudly.
+            # the doc) - but the driver types it Optional, so fail loudly.
             raise RuntimeError("find_one_and_update returned no document")
         return str(found["_id"])
 

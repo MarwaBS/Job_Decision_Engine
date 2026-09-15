@@ -7,7 +7,7 @@ file, and CI must pip-audit the lock so a new advisory turns the build
 red.
 
 These are file-contract greps in the same spirit as
-tests/test_semantic.py::TestRevisionPinning::test_dockerfile_prewarm_revision_matches_pin —
+tests/test_semantic.py::TestRevisionPinning::test_dockerfile_prewarm_revision_matches_pin -
 they make it impossible to edit one side of the contract without the
 suite noticing.
 """
@@ -48,18 +48,18 @@ class TestLockCoversDirectPins:
         tested."""
         direct = _pins(_ROOT / "requirements.txt")
         locked = _pins(_ROOT / "requirements-lock.txt")
-        assert direct, "requirements.txt parsed to zero pins — parser broken?"
+        assert direct, "requirements.txt parsed to zero pins - parser broken?"
         for name, version in direct.items():
             assert locked.get(name) == version, (
                 f"{name}=={version} is pinned in requirements.txt but the "
-                f"lock has {name}=={locked.get(name)!r} — regenerate "
+                f"lock has {name}=={locked.get(name)!r} - regenerate "
                 "requirements-lock.txt (see its header) so the direct pins "
                 "and the transitive lock agree."
             )
 
     def test_lock_is_a_superset_of_direct_pins(self):
         """The lock must contain strictly more packages than the direct
-        list — if it ever collapses to just the direct pins, the
+        list - if it ever collapses to just the direct pins, the
         transitive universe is unlocked again."""
         direct = _pins(_ROOT / "requirements.txt")
         locked = _pins(_ROOT / "requirements-lock.txt")
@@ -106,6 +106,23 @@ class TestInstallersConsumeTheLock:
         dockerfile = (_ROOT / "Dockerfile").read_text(encoding="utf-8")
         assert "-r requirements.txt -c requirements-lock.txt" in dockerfile
         assert "requirements-lock.txt ./requirements-lock.txt" in dockerfile
+
+    def test_ci_builds_the_image_before_deploy(self):
+        """A source mirror must not deploy code whose Dockerfile was never built."""
+        import yaml
+
+        workflow = yaml.safe_load(
+            (_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        )
+        image_job = workflow["jobs"].get("docker-build")
+        assert image_job is not None, "CI has no Docker build job"
+        commands = "\n".join(
+            step.get("run", "") for step in image_job["steps"] if "run" in step
+        )
+        assert any(
+            line.strip().startswith("docker build ") for line in commands.splitlines()
+        ), "Docker build job never invokes docker build"
+        assert "docker-build" in workflow["jobs"]["deploy-hf"]["needs"]
 
     def test_dependabot_may_not_bump_transitive_pins_in_the_lock(self):
         """pip scans every requirements*.txt, so version updates edit single

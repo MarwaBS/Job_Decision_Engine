@@ -23,7 +23,7 @@ from src.config import (
 
 class TestWeights:
     def test_weights_match_architecture_section_6(self):
-        """The scoring-weight table — each value is defensible per-row."""
+        """The scoring-weight table - each value is defensible per-row."""
         assert WEIGHTS.skills == 0.30
         assert WEIGHTS.experience == 0.20
         assert WEIGHTS.semantic == 0.15
@@ -83,8 +83,8 @@ class TestVersions:
     def test_weights_version_matches_thresholds_version(self):
         """Locked convention: v1 weights and v1 thresholds ship together.
 
-        If one retunes, the other is re-audited. This test catches the case
-        where a contributor bumps one version without revisiting the other.
+        Weights and thresholds jointly determine verdicts, so their version
+        labels must move together.
         """
         assert WEIGHTS_VERSION == THRESHOLDS_VERSION
 

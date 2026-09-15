@@ -1,6 +1,6 @@
-"""Persistence layer — pure I/O on top of the `Store` Protocol.
+"""Persistence layer - pure I/O on top of the `Store` Protocol.
 
-Pure I/O layer only — no logic transformation here.
+Pure I/O layer only - no logic transformation here.
 
 This module composes the primitive `Store` operations into the specific
 write patterns the orchestrator needs:
@@ -20,7 +20,7 @@ Version tagging:
 
 Every `decisions` write inherits the `weights`, `thresholds_version`, and
 `engine_version` stamped on the `DecisionResult` by the scorer (Step 2).
-This layer does not set them — it merely forwards. That's the Phase-10
+This layer does not set them - it merely forwards. That's the Phase-10
 reproducibility contract: a decision read back later can be re-scored
 against its original config and compared.
 """
@@ -51,7 +51,7 @@ def persist_decision(
     """Persist a decision alongside its source job.
 
     The job is upserted by `content_hash` (dedupes repeat submissions).
-    The decision is strictly appended — multiple decisions against the same
+    The decision is strictly appended - multiple decisions against the same
     job (e.g., after a profile bump) each get their own doc.
 
     Returns the decision's id.
@@ -134,7 +134,7 @@ def persist_feedback(
 ) -> str:
     """Append a user-authored correction note.
 
-    v1: logged only — never consumed by the scorer. The feedback loop
+    v1: logged only - never consumed by the scorer. The feedback loop
     activates in v2 when N≥50 accumulate.
     """
     feedback = FeedbackLog(

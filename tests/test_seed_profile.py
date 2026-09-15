@@ -68,5 +68,5 @@ class TestSeedProfile:
 
         store = InMemoryStore()
         seed_profile(path, store)
-        seed_profile(path, store)  # same version — in-place
+        seed_profile(path, store)  # same version - in-place
         assert store.count("profiles") == 1

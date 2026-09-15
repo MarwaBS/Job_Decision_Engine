@@ -1,4 +1,4 @@
-"""Orchestrator — glues parser + signals + LLM + scorer + persistence.
+"""Orchestrator - glues parser + signals + LLM + scorer + persistence.
 
 Single public entrypoint:
 
@@ -6,7 +6,7 @@ Single public entrypoint:
 
 The orchestrator is the one function the UI (Step 5) and any future API
 will call. It holds the dependency wiring and the order-of-operations, but
-does NOT itself make decisions — the scorer does.
+does NOT itself make decisions - the scorer does.
 
 Order of operations:
 
@@ -73,7 +73,7 @@ def compute_role_level_fit(job: ParsedJob, profile: CandidateProfile) -> float:
     """Role-level match ∈ {0.0, 0.5, 1.0}.
 
     - 1.0: exact match (Senior candidate applying to Senior JD) or the JD
-      is unlabelled (don't penalise — same rationale as experience match).
+      is unlabelled (don't penalise - same rationale as experience match).
     - 0.5: one level apart (Senior → Staff; Mid → Senior).
     - 0.0: two or more levels apart.
 
@@ -112,12 +112,12 @@ def evaluate_job(
             `store.get_active_profile()`).
         store: The persistence interface. Called exactly twice:
             `upsert_job` + `insert_decision`.
-        reasoner: LLM reasoner. A `FailingReasoner` is valid — the
+        reasoner: LLM reasoner. A `FailingReasoner` is valid - the
             orchestrator will catch and substitute the null-reasoning path.
-        embedding_provider: Semantic-similarity provider — REQUIRED.
+        embedding_provider: Semantic-similarity provider - REQUIRED.
             Production callers pass `SentenceTransformerProvider()` (the
             Streamlit app constructs this at boot). Tests pass
-            `MockEmbeddingProvider()` directly. There is no default —
+            `MockEmbeddingProvider()` directly. There is no default -
             silent fallback to a mock provider would change scoring
             depending on whether the caller remembered to pass it.
 
@@ -199,7 +199,7 @@ def evaluate_job(
         raise RuntimeError(
             f"engine_version mismatch: scorer produced "
             f"{decision.engine_version!r}, orchestrator expects "
-            f"{ENGINE_VERSION!r} — refusing to persist a stale decision"
+            f"{ENGINE_VERSION!r} - refusing to persist a stale decision"
         )
 
     # ── Step 10: persist ───────────────────────────────────────────────────
@@ -215,15 +215,15 @@ def _check_dealbreakers(job: ParsedJob, profile: CandidateProfile) -> bool:
     """Return True if the JD violates any of the profile's dealbreakers.
 
     Dealbreaker vocabulary (mirrored by `schemas.KNOWN_DEALBREAKERS`):
-        "requires_10_yr_exp"  — fires when job.years_required >= 10
-        "on_site_only"        — fires when job.remote is EXPLICITLY False
+        "requires_10_yr_exp"  - fires when job.years_required >= 10
+        "on_site_only"        - fires when job.remote is EXPLICITLY False
                                  (the JD mentions on-site/in-office). A JD
                                  that is silent on workplace (remote=None)
-                                 does NOT fire — absence of evidence is not
+                                 does NOT fire - absence of evidence is not
                                  evidence of on-site, per the same "don't
                                  penalise missing data" principle the
                                  experience and role-level signals follow.
-        "no_pytorch"          — fires when the JD lists pytorch as a
+        "no_pytorch"          - fires when the JD lists pytorch as a
                                  required OR preferred skill. A dealbreaker is a
                                  hard "I won't do this"; a "nice-to-have" PyTorch
                                  still means the role expects PyTorch, so checking

@@ -1,4 +1,4 @@
-"""Skills signal — taxonomy + extraction + match score.
+"""Skills signal - taxonomy + extraction + match score.
 
 A REAL signal. The extraction is taxonomy-based regex matching
 (fast, deterministic, offline). spaCy NER is an optional enhancer that can
@@ -14,7 +14,7 @@ scorer. It returns a value in `[0, 1]` shaped like a weighted Jaccard:
 
 Rationale: required skills are hard signals; preferred skills are
 "nice-to-have" signals and should contribute at half weight. Clipping the
-denominator to avoid division by zero when a JD lists no skills — in that
+denominator to avoid division by zero when a JD lists no skills - in that
 case the function returns `0.0` and relies on the parser's low
 `parse_confidence` to short-circuit the decision to PARSE_FAILURE
 (scorer hard filter).
@@ -105,7 +105,7 @@ SKILLS_TAXONOMY: dict[str, dict[str, list[str]]] = {
 def _all_skills() -> dict[str, list[str]]:
     """Flatten the taxonomy to {canonical: [aliases]}.
 
-    Canonicals are unique across buckets by construction — verified by
+    Canonicals are unique across buckets by construction - verified by
     `test_skills.py::TestTaxonomyInvariants::test_taxonomy_no_duplicate_canonicals`.
     """
     out: dict[str, list[str]] = {}
@@ -118,7 +118,7 @@ def _all_skills() -> dict[str, list[str]]:
 # for aliases that start or end in a non-word character ("c++", "c#"): there
 # is no \b between "+" and a following space, so "c\+\+\b" would never match
 # "C++ ". Custom lookarounds assert "no word character on either side"
-# instead, which works uniformly for "ts", "c++", "c#", and "node.js" —
+# instead, which works uniformly for "ts", "c++", "c#", and "node.js" -
 # "ts" matches "TS," but never the tail of "Requirements".
 _BOUNDARY_START = r"(?<![A-Za-z0-9_])"
 _BOUNDARY_END = r"(?![A-Za-z0-9_])"
@@ -126,12 +126,12 @@ _BOUNDARY_END = r"(?![A-Za-z0-9_])"
 # Short aliases that are ALSO ordinary English tokens. Word boundaries alone
 # cannot save these: "send your CV" is not computer vision, "R&D" is not the
 # R language, "go-to-market" is not Golang, "TF-IDF" is not TensorFlow, and
-# "DE Shaw" is not data engineering. These match only in LIST CONTEXT — the
+# "DE Shaw" is not data engineering. These match only in LIST CONTEXT - the
 # dominant way real JDs cite skills ("Python, Go, R", "TS/JS", "(R)",
 # bullet lines): delimited by punctuation/line edges, not flowing prose.
 #
 # Accepted precision/recall tradeoff (documented, deliberate): prose like
-# "experience with Go and Docker" no longer credits `go` — the unambiguous
+# "experience with Go and Docker" no longer credits `go` - the unambiguous
 # alias ("Golang") still does. High precision wins: a phantom skill inflates
 # the match denominator and silently corrupts scores for every JD, while a
 # prose-only miss costs one alias occurrence on an uncommon phrasing.
@@ -139,7 +139,7 @@ _AMBIGUOUS_TOKENS = frozenset({"go", "r", "cv", "de", "tf", "ts", "js", "py"})
 
 # List-context anchors: an ambiguous token must touch a STRONG delimiter
 # (list punctuation, or a bullet marker at a line start) on at least one
-# side — plain spaces and line edges are how prose presents these words, so
+# side - plain spaces and line edges are how prose presents these words, so
 # they don't count on their own. "Python, Go, R" / "TS/JS" / "(R)" /
 # "- Go" all qualify; "go-to-market", "R&D", "TF-IDF", "send your CV"
 # don't.
@@ -148,7 +148,7 @@ _AMBIGUOUS_TOKENS = frozenset({"go", "r", "cv", "de", "tf", "ts", "js", "py"})
 # test_skills.py::TestExtraction::test_documented_residual_phantoms_are_pinned):
 # delimiter adjacency cannot see what's on the FAR side of the delimiter, so
 # prose that happens to
-# put list punctuation against one of these tokens still matches —
+# put list punctuation against one of these tokens still matches -
 # "ready to go, and..." (trailing comma), "TS/SCI clearance" (slash),
 # "CV/cover letter" (slash), "Microsoft(R)" (parens). Disambiguating those
 # would require modelling the neighbour token (is the other side of the
@@ -156,7 +156,7 @@ _AMBIGUOUS_TOKENS = frozenset({"go", "r", "cv", "de", "tf", "ts", "js", "py"})
 # every one of these ALSO matched under plain word-boundary matching, so
 # list-context gating strictly tightens precision and the residual set is
 # small, named, and regression-pinned. All quantifiers are bounded
-# (`\s?`) — no star adjacency, so no polynomial backtracking.
+# (`\s?`) - no star adjacency, so no polynomial backtracking.
 _STRONG_LEAD = r"(?:[,;:/()|]\s?|(?:^|\n)\s?[-•*]\s)"
 _STRONG_TRAIL = r"(?=\s?[,;:/()|])"
 
@@ -194,7 +194,7 @@ class SkillSet:
     """Structured output of `extract_skills`.
 
     Lists are canonical (deduped, sorted) so two runs on the same input
-    produce byte-identical output — a prerequisite for deterministic content
+    produce byte-identical output - a prerequisite for deterministic content
     hashing in the ingestion layer.
     """
 
@@ -240,7 +240,7 @@ def extract_skills(text: str) -> SkillSet:
 def compute_skills_match(job: ParsedJob, profile: CandidateProfile) -> float:
     """Weighted-Jaccard-ish match score ∈ [0, 1].
 
-    Returns 0.0 when the job lists no required OR preferred skills — the
+    Returns 0.0 when the job lists no required OR preferred skills - the
     parser's `parse_confidence` is the hard-filter that should catch this
     case and route to PARSE_FAILURE.
     """
@@ -271,7 +271,7 @@ def _build_alias_lookup() -> dict[str, str]:
 
     Profile skills are free-form text ("sklearn", "k8s", "torch"), not JD
     prose, so they are normalised through the same taxonomy the extraction
-    side uses — otherwise profile "sklearn" would silently fail to match
+    side uses - otherwise profile "sklearn" would silently fail to match
     JD-extracted "scikit-learn". Aliases that are regex fragments are
     translated by unescaping the constructs the taxonomy actually uses;
     anything still containing a backslash is extraction-only.
@@ -280,11 +280,11 @@ def _build_alias_lookup() -> dict[str, str]:
     ambiguous tokens in ``_AMBIGUOUS_TOKENS`` ("r", "cv", "de", "tf", ...) to a
     strong list-context delimiter so they don't false-match inside JD *prose*
     ("...experience with R&D..."). This lookup applies those aliases with no such
-    gate — and correctly so: ``_normalise`` matches a profile entry by EXACT
+    gate - and correctly so: ``_normalise`` matches a profile entry by EXACT
     whole-string equality (``_ALIAS_LOOKUP.get(key)`` where ``key`` is the entire
     stripped, lower-cased entry). A profile skill is a discrete list item, so an
     entry that resolves an ambiguous alias is one the candidate typed as exactly
-    "r"/"cv"/"de" — already the list context the extraction side has to
+    "r"/"cv"/"de" - already the list context the extraction side has to
     reconstruct from prose. Prose like "experience with go" never matches here
     (the whole string is the key, not a substring), so the gate is unnecessary.
     """

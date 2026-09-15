@@ -1,7 +1,7 @@
 """Pydantic data contracts for the Job Decision Engine.
 
 Every type that crosses a module boundary is defined here. These Pydantic
-models ARE the authoritative data contracts for the engine — they are the
+models ARE the authoritative data contracts for the engine - they are the
 source of truth, and every other module is held to the shapes defined below.
 
 Design rules enforced here:
@@ -29,10 +29,10 @@ class Verdict(StrEnum):
 
     - Fit-signal verdicts (threshold-derived from apply_score):
         PRIORITY, APPLY, REVIEW, SKIP.
-    - Input-quality verdict (orthogonal — no apply_score is computed):
+    - Input-quality verdict (orthogonal - no apply_score is computed):
         PARSE_FAILURE. Returned when the JD could not be parsed reliably
         enough to score (parse_confidence < MIN_PARSE_CONFIDENCE). The
-        `apply_score` on a PARSE_FAILURE result is `None`, not 0.0 — the
+        `apply_score` on a PARSE_FAILURE result is `None`, not 0.0 - the
         score is undefined, not "0% match".
     """
 
@@ -47,7 +47,7 @@ class FailureMode(StrEnum):
     """Coded labels for structural issues flagged during scoring.
 
     None (the absence of this label on a decision) means no structural issue
-    was detected. The labels themselves are fixed — adding a new one is a
+    was detected. The labels themselves are fixed - adding a new one is a
     deliberate change to the scoring contract, not an ad-hoc addition.
     """
 
@@ -228,7 +228,7 @@ class DecisionResult(BaseModel):
 #: keys it doesn't recognize, so an unvalidated typo (e.g. "requires_10yr_exp")
 #: would disable a dealbreaker with no signal. CandidateProfile rejects unknown
 #: keys at construction instead. Semantics live in
-#: ``src.engine.orchestrator._check_dealbreakers`` — every key listed here is
+#: ``src.engine.orchestrator._check_dealbreakers`` - every key listed here is
 #: enforced there; the vocabulary contains no no-op entries.
 KNOWN_DEALBREAKERS: frozenset[str] = frozenset(
     {"requires_10_yr_exp", "on_site_only", "no_pytorch"}
@@ -286,7 +286,7 @@ class ParsedJob(BaseModel):
     location: str | None = None
     # Tri-state: True = remote/hybrid mentioned, False = on-site explicitly
     # mentioned, None = the JD is silent on workplace. The `on_site_only`
-    # dealbreaker fires only on an explicit False — never on None.
+    # dealbreaker fires only on an explicit False - never on None.
     remote: bool | None = None
     seniority: Seniority | None = None
     years_required: float | None = None
@@ -330,7 +330,7 @@ class OutcomeStage(BaseModel):
 
 
 class Outcome(BaseModel):
-    """Job-search outcome — manually entered by the candidate."""
+    """Job-search outcome - manually entered by the candidate."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -343,12 +343,12 @@ class Outcome(BaseModel):
 
 
 class ReasoningOutput(BaseModel):
-    """LLM reasoning output — the strict JSON contract.
+    """LLM reasoning output - the strict JSON contract.
 
     The LLM MUST produce JSON matching this exact shape.
     If it doesn't, the reasoning layer retries once; if that also fails,
     the reasoning is set to `None` on the `DecisionResult` and the scorer
-    continues with `llm_confidence = 0.0` — the LLM never causes a decision
+    continues with `llm_confidence = 0.0` - the LLM never causes a decision
     failure.
 
     Bounds:

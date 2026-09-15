@@ -2,12 +2,12 @@
 
 The headline test: **`evaluate()` MUST return a STUB when N < 50**.
 
-This is the integrity claim of the whole project — simulating feedback
+This is the integrity claim of the whole project - simulating feedback
 data would be worse than showing no evaluation. If this test fails, an
 actual deployment could ship fake metrics.
 
 The REAL-metric path is tested with seeded fake data SOLELY to verify the
-metric shape (not the semantic correctness of the metrics themselves —
+metric shape (not the semantic correctness of the metrics themselves -
 that's a portfolio conversation, not a test).
 """
 
@@ -104,7 +104,7 @@ class TestStubPathIntegrity:
 
     def test_stub_result_metrics_field_is_empty_dict_not_none(self):
         """A consistent shape prevents downstream code from crashing on
-        `None`. The metrics field is always a dict — empty in STUB case."""
+        `None`. The metrics field is always a dict - empty in STUB case."""
         result = evaluate(InMemoryStore())
         assert isinstance(result.metrics, dict)
 
@@ -164,7 +164,7 @@ class TestMetricShape:
 
     def test_precision_apply_filters_to_apply_verdict_decisions(self):
         """`precision_apply` is precision-of-APPLY (README §6): positives
-        over outcomes whose originating decision had verdict=APPLY —
+        over outcomes whose originating decision had verdict=APPLY -
         mirroring the `precision_priority` join. Regression: it used to be
         computed over ALL submitted outcomes with no verdict filter, which
         is a different metric (overall callback precision) wearing the
@@ -185,7 +185,7 @@ class TestMetricShape:
 
     def test_precision_apply_absent_when_no_apply_verdict_outcomes(self):
         """Same contract as precision_priority: if no outcome joins to an
-        APPLY-verdict decision, the metric is omitted — never fabricated."""
+        APPLY-verdict decision, the metric is omitted - never fabricated."""
         store = InMemoryStore()
         for _ in range(50):
             did = store.insert_decision(_decision(verdict=Verdict.PRIORITY))
@@ -200,7 +200,7 @@ class TestMetricShape:
         On Mongo, `list_decisions` returns documents whose `_id` is a raw
         ObjectId, while outcomes store `decision_id` as the STRING form
         (`str(inserted_id)` from db.py). The join must stringify the index
-        key — keying by the raw `_id` made `precision_priority` silently
+        key - keying by the raw `_id` made `precision_priority` silently
         impossible to compute in production while in-memory tests (string
         ids) stayed green.
         """

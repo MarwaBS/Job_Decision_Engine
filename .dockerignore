@@ -5,7 +5,7 @@
 .gitignore
 .gitattributes
 
-# Internal docs + audit trail (private — never in the image)
+# Internal docs + audit trail (private - never in the image)
 MEMORY/
 docs/
 EXECUTION_RULES.md
@@ -20,7 +20,7 @@ env/
 profile.yaml
 profile.*.yaml
 
-# Tests — the image runs the app, not the test suite
+# Tests - the image runs the app, not the test suite
 tests/
 
 # Python caches

@@ -25,7 +25,7 @@ profile.yaml
 profile.*.yaml
 *.env.local
 
-# ── Internal docs (private — stay local, never in the public repo) ──────────
+# ── Internal docs (private - stay local, never in the public repo) ──────────
 # These are the author's internal engineering + audit artefacts. They live
 # on disk for the author's own reference but must not enter the public repo.
 # Keeping them gitignored (not just `.dockerignored`) guarantees they also
@@ -37,7 +37,7 @@ EXECUTION_RULES.md
 AUDIT_STATE.md
 
 # Pre-existing clone of the public repo lives nested inside the working
-# tree — keep it out of this local git history.
+# tree - keep it out of this local git history.
 Job_Decision_Engine/
 
 # ── IDE / OS ────────────────────────────────────────────────────────────────

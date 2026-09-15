@@ -1,6 +1,6 @@
 """Tests for the LLM reasoning layer.
 
-All tests use `MockReasoner` / `FailingReasoner` — no OpenAI calls, no
+All tests use `MockReasoner` / `FailingReasoner` - no OpenAI calls, no
 network, hermetic. The `OpenAIReasoner` is exercised by a separate
 integration smoke test (needs a real API key) that is NOT part of this
 suite.
@@ -210,7 +210,7 @@ class TestPromptVersioning:
 
 class TestTransportFailures:
     """Network errors / rate limits / timeouts must surface as
-    `LLMReasoningFailed` — the ONE exception type the orchestrator catches.
+    `LLMReasoningFailed` - the ONE exception type the orchestrator catches.
 
     Regression guard: only schema violations used to be wrapped, so an
     `openai.APIConnectionError` propagated straight through `evaluate_job`
@@ -218,7 +218,7 @@ class TestTransportFailures:
     the decision ships with reasoning=None on LLM failure.
 
     `openai` is a pinned runtime dependency (requirements.txt) and is
-    installed in CI; these tests stay hermetic — the fake client raises
+    installed in CI; these tests stay hermetic - the fake client raises
     before any network I/O.
     """
 
@@ -285,7 +285,7 @@ class TestTransportFailures:
         assert store.count("decisions") == 1
 
     def test_request_timeout_is_explicitly_bounded(self):
-        """The SDK default (~10 min) is unacceptable behind a UI spinner —
+        """The SDK default (~10 min) is unacceptable behind a UI spinner -
         the per-request timeout must be set and sane."""
         from src.llm.reasoning import OpenAIReasoner
 
@@ -354,7 +354,7 @@ class TestLLMModulePurity:
             stripped = line.rstrip()
             if stripped == "import openai" or stripped.startswith("import openai "):
                 pytest.fail(
-                    "src/llm/reasoning.py has top-level `import openai` — "
+                    "src/llm/reasoning.py has top-level `import openai` - "
                     "tests should not require openai installed"
                 )
             if stripped == "from openai import OpenAI":

@@ -81,7 +81,7 @@ class TestExtraction:
         ],
     )
     def test_no_substring_phantom_skills(self, text: str, phantom: str):
-        """Adversarial regression guard for the boundary-anchoring bug.
+        """Regression guard for the boundary-anchoring bug.
 
         Aliases compiled WITHOUT word boundaries turned ordinary JD prose
         into phantom skills ("RequiremenTS" → typescript), silently
@@ -93,7 +93,7 @@ class TestExtraction:
     @pytest.mark.parametrize(
         ("text", "phantom"),
         [
-            # Ambiguous short aliases are ALSO ordinary English tokens —
+            # Ambiguous short aliases are ALSO ordinary English tokens -
             # word boundaries alone can't disambiguate them. They require
             # list context (delimiter-adjacent), so flowing prose must
             # never credit them:
@@ -112,7 +112,7 @@ class TestExtraction:
     @pytest.mark.parametrize(
         ("text", "expected_subset"),
         [
-            # ...while list-style citations — the dominant JD pattern —
+            # ...while list-style citations - the dominant JD pattern -
             # must still extract them:
             ("Languages: Python, Go, R", {"go", "python", "r"}),
             ("TS/JS stack", {"javascript", "typescript"}),
@@ -133,7 +133,7 @@ class TestExtraction:
             # KNOWN, DOCUMENTED residuals of list-context gating (see the
             # _STRONG_LEAD/_STRONG_TRAIL comment in skills.py): delimiter
             # adjacency can't see the far side of the delimiter. These pins
-            # make the accepted limitation visible and verifiable — if a
+            # make the accepted limitation visible and verifiable - if a
             # future change FIXES one, this test fails and the residual
             # documentation must be updated to match.
             ("ready to go, and we ship", "go"),
@@ -145,7 +145,7 @@ class TestExtraction:
     def test_documented_residual_phantoms_are_pinned(
         self, text: str, residual_phantom: str
     ):
-        """These phantoms are an accepted, documented tradeoff — NOT a bug
+        """These phantoms are an accepted, documented tradeoff - NOT a bug
         regression. Every one of them also matched under plain word-boundary
         matching, so list-context gating strictly tightened precision."""
         assert residual_phantom in extract_skills(text).all
@@ -155,7 +155,7 @@ class TestExtraction:
         ambiguous tokens are gated to list-context only on the EXTRACTION side
         (JD prose). On the profile side, _normalise matches the WHOLE entry
         exactly, so a discrete list item literally equal to "cv"/"r" resolves to
-        its canonical — that entry IS list context — while prose embedding the
+        its canonical - that entry IS list context - while prose embedding the
         token does not (the whole string is the key, not a substring)."""
         # Discrete ambiguous entries resolve to canonicals.
         assert _normalise(["cv"]) == {"computer vision"}
@@ -166,7 +166,7 @@ class TestExtraction:
         assert "computer vision" not in _normalise(["my cv is attached"])
 
     def test_boundary_anchoring_still_matches_real_mentions(self):
-        """The anchors must not cost recall on legitimate mentions —
+        """The anchors must not cost recall on legitimate mentions -
         including the awkward symbol-suffixed aliases (c++, c#) where a
         naive \\b would fail."""
         s = extract_skills(
@@ -198,7 +198,7 @@ class TestExtraction:
         assert a == b
 
     def test_extraction_sorted_output(self):
-        """Lists must be sorted — guarantees byte-stable content hashes."""
+        """Lists must be sorted - guarantees byte-stable content hashes."""
         s = extract_skills("TypeScript, Python, Java, Go")
         assert list(s.tech) == sorted(s.tech)
 
@@ -282,7 +282,7 @@ class TestSkillsMatch:
 
         Extraction emits CANONICAL names ("scikit-learn"); profiles are
         written by humans ("sklearn", "k8s", "torch"). Without alias
-        resolution those silently never match — the profile side must go
+        resolution those silently never match - the profile side must go
         through the same vocabulary as the JD side.
         """
         job = ParsedJob(

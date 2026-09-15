@@ -1,4 +1,4 @@
-"""LLM reasoning layer — produces structured explanations for decisions.
+"""LLM reasoning layer - produces structured explanations for decisions.
 
 The LLM is a SIGNAL (bounded `llm_confidence` contribution)
 AND an explanatory layer (strengths / gaps / risks / talking points).

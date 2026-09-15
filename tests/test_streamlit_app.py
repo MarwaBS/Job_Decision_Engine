@@ -2,7 +2,7 @@
 
 The render layer (`render_decision`, including the PARSE_FAILURE "N/A" branch) was
 previously exercised only by "it imports". These run the real Streamlit script via
-``streamlit.testing.v1.AppTest`` and assert on the rendered elements — using a
+``streamlit.testing.v1.AppTest`` and assert on the rendered elements - using a
 hermetic ``MockEmbeddingProvider`` + ``MockReasoner`` so no model/network is needed.
 """
 
@@ -15,7 +15,7 @@ from streamlit.testing.v1 import AppTest
 
 _APP_PATH = Path(__file__).resolve().parents[1] / "streamlit_app" / "app.py"
 
-# AppTest's default script timeout is 3 s — measured cold runs of these tests
+# AppTest's default script timeout is 3 s - measured cold runs of these tests
 # (first import of streamlit + pydantic model build) have exceeded it on a
 # developer laptop, failing the suite spuriously. A generous explicit timeout
 # keeps the tests deterministic; warm runs still finish in well under 1 s.
@@ -83,8 +83,8 @@ def _render_header_script(mode_name: str, reasoner_state: str) -> None:
         name=mode_name,
         label="OpenAI + in-memory store",
         banner_kind="info",
-        store_kind="InMemoryStore — session-only",
-        reasoner_kind="OpenAIReasoner (gpt-4o) — reasoning panel populated",
+        store_kind="InMemoryStore - session-only",
+        reasoner_kind="OpenAIReasoner (gpt-4o) - reasoning panel populated",
         embedding_kind="SentenceTransformer (all-MiniLM-L6-v2)",
     )
     reasoner = FailingReasoner() if reasoner_state == "dead" else MockReasoner()
@@ -127,7 +127,7 @@ def test_banner_reports_live_llm_when_reasoner_works() -> None:
 
 
 def test_render_decision_parse_failure_shows_na_not_zero() -> None:
-    """The PARSE_FAILURE branch must render "N/A — parse failure", not "0.0/100"
+    """The PARSE_FAILURE branch must render "N/A - parse failure", not "0.0/100"
     (an undefined score must not read as a 0% match)."""
     at = AppTest.from_function(
         _render_decision_script,
@@ -136,14 +136,14 @@ def test_render_decision_parse_failure_shows_na_not_zero() -> None:
     ).run()
     assert not at.exception, at.exception
     values = [m.value for m in at.metric]
-    assert any("N/A — parse failure" in v for v in values), values
+    assert any("N/A - parse failure" in v for v in values), values
     assert not any("0.0 / 100" in v for v in values), values
     assert any(v == "PARSE_FAILURE" for v in values), values
 
 
 def test_no_stray_module_level_strings_leak_to_ui() -> None:
-    """Streamlit "magic" renders any top-level bare expression — including a
-    stray triple-quoted string — into the live UI. A PEP-257 "attribute
+    """Streamlit "magic" renders any top-level bare expression - including a
+    stray triple-quoted string - into the live UI. A PEP-257 "attribute
     docstring" placed after a module-level assignment is exactly such a bare
     expression, so it leaks developer commentary onto the page above the title.
 
@@ -159,12 +159,12 @@ def test_no_stray_module_level_strings_leak_to_ui() -> None:
     stray = [
         node.value.lineno
         for i, node in enumerate(module.body)
-        if i != 0  # index 0 is the module docstring — Streamlit skips it
+        if i != 0  # index 0 is the module docstring - Streamlit skips it
         and isinstance(node, ast.Expr)
         and isinstance(node.value, ast.Constant)
         and isinstance(node.value.value, str)
     ]
     assert not stray, (
         f"Bare module-level string(s) at line(s) {stray} in {_APP_PATH.name} "
-        "will be rendered into the UI by Streamlit magic — make them comments."
+        "will be rendered into the UI by Streamlit magic - make them comments."
     )

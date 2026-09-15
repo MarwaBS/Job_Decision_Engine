@@ -4,7 +4,7 @@ The README's Example B quotes concrete numbers; this suite pins every
 hermetically-computable one (parser + pure signals) so README drift fails
 CI. `semantic_sim` and the final `apply_score` depend on the pinned
 sentence-transformer model and are reproduced by running the script
-itself — not asserted here, to keep the suite model-free and fast.
+itself - not asserted here, to keep the suite model-free and fast.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ class TestExampleADeterministicSignals:
 
     def test_parse_confidence_is_45_percent(self):
         """Recovered structure: seniority keyword (0.10) + ≥1 skill (0.20)
-        + ≥3 skills (0.15) = 0.45 — below MIN_PARSE_CONFIDENCE (0.5)."""
+        + ≥3 skills (0.15) = 0.45 - below MIN_PARSE_CONFIDENCE (0.5)."""
         assert parse_job(EXAMPLE_A_JD).parse_confidence == pytest.approx(0.45)
 
     def test_extracted_skills(self):
@@ -38,7 +38,7 @@ class TestExampleADeterministicSignals:
         job = parse_job(EXAMPLE_A_JD)
         result = score(
             Signals(
-                skills_match=1.0,  # irrelevant — hard filter fires first
+                skills_match=1.0,  # irrelevant - hard filter fires first
                 experience_match=1.0,
                 semantic_similarity=1.0,
                 llm_confidence=1.0,

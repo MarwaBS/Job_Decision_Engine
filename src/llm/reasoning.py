@@ -1,4 +1,4 @@
-"""LLM reasoning — Protocol seam + OpenAI implementation + Mock for tests.
+"""LLM reasoning - Protocol seam + OpenAI implementation + Mock for tests.
 
 The LLM:
 
@@ -34,11 +34,11 @@ class LLMReasoningFailed(RuntimeError):
 
     Covers BOTH failure classes of the reasoning layer:
     - schema failures: the retry-once-then-fail validation path exhausts;
-    - transport failures: network errors, rate limits, timeouts — any
+    - transport failures: network errors, rate limits, timeouts - any
       `openai.OpenAIError` raised by the API call itself.
 
     Caller (the orchestrator) MUST catch this and substitute
-    `reasoning=None` + `llm_confidence=0.0` on the DecisionResult — the
+    `reasoning=None` + `llm_confidence=0.0` on the DecisionResult - the
     scorer continues without the LLM signal. No other exception type
     escapes the reasoning layer for an LLM-side failure, which is what
     makes the "decision still ships" contract enforceable with one
@@ -55,7 +55,7 @@ class LLMReasoner(Protocol):
 
     A reasoner takes all the deterministic context the LLM needs and
     returns a validated `ReasoningOutput` OR raises `LLMReasoningFailed`.
-    No partial returns; no null-sentinel values at this boundary — that
+    No partial returns; no null-sentinel values at this boundary - that
     translation happens in the orchestrator.
     """
 
@@ -185,7 +185,7 @@ class FailingReasoner:
 
 
 class OpenAIReasoner:
-    """Production reasoner — OpenAI `gpt-4o` with strict JSON response format.
+    """Production reasoner - OpenAI `gpt-4o` with strict JSON response format.
 
     Retry-once-then-fail policy:
 
@@ -195,7 +195,7 @@ class OpenAIReasoner:
           on second ValidationError: raise LLMReasoningFailed
 
     The OpenAI SDK is lazy-imported (`openai` is in requirements.txt but tests
-    never need it — they use `MockReasoner`).
+    never need it - they use `MockReasoner`).
     """
 
     def __init__(
@@ -233,7 +233,7 @@ class OpenAIReasoner:
     def verify_live(self) -> None:
         """Confirm the API key actually WORKS, not merely that it is present.
 
-        ``__init__`` only checks OPENAI_API_KEY is set — an invalid, revoked, or
+        ``__init__`` only checks OPENAI_API_KEY is set - an invalid, revoked, or
         unfunded key constructs an OpenAIReasoner fine and then fails on the
         first real ``reason()`` call, which is how the live demo's banner came to
         claim "reasoning panel populated" while every request returned "LLM
@@ -243,10 +243,10 @@ class OpenAIReasoner:
         the UI shows the honest LLM-absent mode. Raises RuntimeError on any
         failure (auth, network, timeout)."""
         try:
-            # Same per-call timeout the real reason() calls use — a stalled
+            # Same per-call timeout the real reason() calls use - a stalled
             # connection must not hang the boot behind a spinner.
             self._ensure_client().models.list(timeout=self._REQUEST_TIMEOUT_SECONDS)
-        except Exception as e:  # noqa: BLE001 — any failure means "not usable"
+        except Exception as e:  # noqa: BLE001 - any failure means "not usable"
             raise RuntimeError(
                 f"OpenAI key present but not usable ({type(e).__name__}: {e}). "
                 "The reasoner will degrade to the LLM-absent path."
@@ -267,7 +267,7 @@ class OpenAIReasoner:
             {"role": "user", "content": user_msg},
         ]
 
-        # Attempt 1 — catch both JSONDecodeError (malformed JSON) and
+        # Attempt 1 - catch both JSONDecodeError (malformed JSON) and
         # ValidationError (schema drift). Both trigger the single retry.
         raw = self._call_openai(messages)
         try:
@@ -275,7 +275,7 @@ class OpenAIReasoner:
         except (ValidationError, json.JSONDecodeError) as first_error:
             first_error_msg = str(first_error)
 
-        # Attempt 2 — retry once with the error appended
+        # Attempt 2 - retry once with the error appended
         messages_retry = messages + [
             {
                 "role": "user",
@@ -301,7 +301,7 @@ class OpenAIReasoner:
     def _call_openai(self, messages: list[dict[str, str]]) -> str:
         """One API round-trip. Transport failures (network, rate limit,
         timeout) are wrapped into `LLMReasoningFailed` so the orchestrator's
-        single catch keeps the "decision still ships" contract — a flaky
+        single catch keeps the "decision still ships" contract - a flaky
         network must never crash an evaluation."""
         client = self._ensure_client()
         from openai import OpenAIError  # lazy import, like the client

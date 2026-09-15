@@ -9,7 +9,7 @@ Key invariants tested:
 
 1. Happy path: returns a DecisionResult with populated reasoning.
 2. LLM-failure fallback: reasoning=None, llm_confidence=0.0, decision ships.
-3. LLM cannot override the verdict — even a `llm_confidence=1.0` MockReasoner
+3. LLM cannot override the verdict - even a `llm_confidence=1.0` MockReasoner
    cannot flip a SKIP to APPLY on hard-filter input (dealbreaker).
 4. Persistence: one job + one decision per call (jobs deduped by hash).
 5. Role-level fit: discrete {0, 0.5, 1.0}.
@@ -38,7 +38,7 @@ from src.signals.semantic import MockEmbeddingProvider
 def _mock_embeddings() -> MockEmbeddingProvider:
     """Fresh deterministic mock embedder for one test call.
 
-    `compute_semantic_similarity` requires an explicit provider — there is
+    `compute_semantic_similarity` requires an explicit provider - there is
     no default. Tests construct their own here; the production Streamlit
     app constructs `SentenceTransformerProvider()` at boot.
     """
@@ -242,7 +242,7 @@ Location: New York, NY
     def test_on_site_only_does_not_fire_when_jd_is_silent_on_workplace(self):
         """Regression guard: `remote` defaulting to False made this
         dealbreaker hard-SKIP every JD that simply never mentioned
-        workplace. Absence of evidence is not evidence of on-site — the
+        workplace. Absence of evidence is not evidence of on-site - the
         dealbreaker fires only on an explicit on-site mention
         (job.remote is False), mirroring the "don't penalise missing
         data" rule of the experience and role-level signals."""
@@ -362,7 +362,7 @@ class TestEmbeddingProviderRequired:
 
     Before this fix, both `compute_semantic_similarity` and
     `evaluate_job` defaulted `embedding_provider=None` and silently
-    substituted `MockEmbeddingProvider()` — so a caller that forgot to
+    substituted `MockEmbeddingProvider()` - so a caller that forgot to
     inject the real `SentenceTransformerProvider` would get hash-based
     mock embeddings in production and score wrong without any warning.
 

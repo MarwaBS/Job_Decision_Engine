@@ -29,14 +29,14 @@ from src.schemas import Thresholds, Weights
 # 0.2.0: skill extraction gained boundary-anchored alias matching, the
 # `on_site_only` dealbreaker stopped firing on workplace-silent JDs, and the
 # parse-confidence hard filter now precedes the dealbreaker filter. Same JD +
-# profile can score differently than under 0.1.0 — hence the bump (decisions
+# profile can score differently than under 0.1.0 - hence the bump (decisions
 # persist the engine_version they were scored with).
 ENGINE_VERSION: str = "0.2.0"
 WEIGHTS_VERSION: str = "v1.0"
 THRESHOLDS_VERSION: str = "v1.0"
 
 
-# ── Scoring weights (priors — not learned) ───────────────────────────────────
+# ── Scoring weights (priors - not learned) ───────────────────────────────────
 #
 # These numbers came from design intent, not from fitting. They will be retuned
 # only when the evaluation framework has N≥50 real outcomes.
@@ -75,6 +75,6 @@ verdict itself.
 
 MIN_PARSE_CONFIDENCE: float = 0.5
 """If `Signals.parse_confidence < MIN_PARSE_CONFIDENCE`, the scorer
-short-circuits to the PARSE_FAILURE verdict with `apply_score=None` —
+short-circuits to the PARSE_FAILURE verdict with `apply_score=None` -
 the score is undefined when the JD could not be parsed. This is
 one of the scorer's hard filters, applied before the weighted sum."""

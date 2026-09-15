@@ -4,17 +4,17 @@ Produces a `Job` with a `parsed: ParsedJob` payload, a
 content hash (SHA-256 of the normalised raw text), a `parse_confidence`
 score in [0, 1], and a list of `parse_warnings`.
 
-Strategy: regex + heuristics only. No LLM. Intentionally lightweight —
+Strategy: regex + heuristics only. No LLM. Intentionally lightweight -
 `parse_confidence` surfaces how much structure was actually recovered, and
 a confidence below `config.MIN_PARSE_CONFIDENCE` short-circuits scoring to
 the PARSE_FAILURE verdict: the score is undefined, not "0%".
 
 Extracted fields (each contributes to `parse_confidence` when found):
 
-    title                   (required — falls back to "Untitled Role")
+    title                   (required - falls back to "Untitled Role")
     company                 (optional)
     location                (optional)
-    remote                  (True/False/None — None when the JD is silent)
+    remote                  (True/False/None - None when the JD is silent)
     seniority               (optional)
     years_required          (optional)
     required_skills         (taxonomy-matched from the text)
@@ -45,7 +45,7 @@ _TITLE_LINE_PATTERN = re.compile(
     r"^(?:title|position|role|job\s*title)\s*+:?\s*(.+?)\s*$",
     re.IGNORECASE,
 )
-# A leading bullet ("-", "•", "*") or numbered-list marker ("1.", "2)") — used to
+# A leading bullet ("-", "•", "*") or numbered-list marker ("1.", "2)") - used to
 # skip body content when falling back to "first line" as the title.
 _BULLET_OR_LIST_PREFIX = re.compile(r"^\s*(?:[-•*]|\d+[.)])\s+")
 _COMPANY_LINE_PATTERN = re.compile(
@@ -57,13 +57,13 @@ _LOCATION_LINE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 # Quantifier discipline (applies to every pattern in this module): never
-# leave two `\s*` adjacent through an optional element ("\s*\+?\s*") — that
+# leave two `\s*` adjacent through an optional element ("\s*\+?\s*") - that
 # shape backtracks polynomially on long whitespace runs in user-pasted text
 # (CodeQL py/polynomial-redos). Optional groups must contain a required
 # character that anchors any inner whitespace.
 # Years are 1-2 digit numbers anchored against digit runs on both sides
 # (`(?<!\d)...(?!\d)`): unbounded `(\d+)` lets a pasted blob of digits match
-# at every offset, turning the search quadratic ("many repetitions of '9'" —
+# at every offset, turning the search quadratic ("many repetitions of '9'" -
 # the second half of the same CodeQL finding). Bounding also stops year-like
 # numbers ("2026") from being misread as an experience requirement.
 _YEARS_PATTERN = re.compile(
@@ -81,7 +81,7 @@ _SALARY_PATTERN = re.compile(
     #
     # Quantifier discipline (ReDoS): no two `\s*` may sit adjacent through an
     # optional element (`\s*[kK]?\s*` backtracks polynomially on long space
-    # runs — flagged by CodeQL py/polynomial-redos). Each optional group here
+    # runs - flagged by CodeQL py/polynomial-redos). Each optional group here
     # contains a required character, so every `\s` repetition is anchored.
     r"\$\s*(\d{2,3}(?:,\d{3})*)"  # low bound, optionally comma-grouped
     r"(?:\s?[kK])?"  # optional thousands suffix ("150k" / "150 k")
@@ -125,7 +125,7 @@ def parse_job(
     Returns:
         A `Job` with structured fields and a `parse_confidence` signal.
 
-    The function is pure — no I/O, no logging, no external calls. Runnable
+    The function is pure - no I/O, no logging, no external calls. Runnable
     in a unit test with any string input.
     """
     normalised = _normalise(raw_text)
@@ -195,7 +195,7 @@ def parse_job(
 def _normalise(text: str) -> str:
     """Collapse multiple blank lines, strip trailing whitespace per line.
 
-    Deterministic — the content hash relies on this being byte-stable.
+    Deterministic - the content hash relies on this being byte-stable.
     """
     lines = [line.rstrip() for line in text.splitlines()]
     # Collapse 3+ consecutive blank lines to 2
@@ -234,13 +234,13 @@ def _extract_title(text: str, warnings: list[str]) -> tuple[str, bool]:
         # a responsibility/requirement, not the role name. Taking the first such
         # line as the title (the old behaviour) mislabeled JDs that open with a
         # "- Responsibilities" line. Accepted tradeoff: a rare stylized title
-        # written as "- Senior Engineer -" is also skipped — the common bulleted-
+        # written as "- Senior Engineer -" is also skipped - the common bulleted-
         # intro case is far more frequent and worth optimising for; this only
         # affects the no-"Title:"-header fallback, which degrades to the next
         # non-bullet line rather than failing.
         if _BULLET_OR_LIST_PREFIX.match(line):
             continue
-        # Guardrail: a line longer than 140 chars is prose, not a title — keep a
+        # Guardrail: a line longer than 140 chars is prose, not a title - keep a
         # truncated form rather than dropping the only signal we have.
         if len(candidate) <= 140:
             return candidate, False
@@ -272,7 +272,7 @@ def _extract_remote(text: str) -> bool | None:
     - True: the JD mentions remote / WFH / hybrid (hybrid = partially remote).
     - False: the JD explicitly mentions on-site / in-office (and not remote).
     - None: the JD is silent on workplace. Absence of evidence is NOT
-      evidence of on-site — downstream consumers (the `on_site_only`
+      evidence of on-site - downstream consumers (the `on_site_only`
       dealbreaker) must only fire on an explicit False, per the same
       "don't penalise missing data" principle the experience and
       role-level signals follow.
@@ -296,7 +296,7 @@ def _any_workplace_cue(text: str) -> bool:
 def _extract_seniority(title: str, body: str) -> Seniority | None:
     """Match seniority keywords in the title first (strongest signal), then body.
 
-    Order of the keyword list is meaningful — principal/staff win over senior
+    Order of the keyword list is meaningful - principal/staff win over senior
     so a "Senior Staff" title correctly resolves to STAFF.
     """
     for pattern, seniority in _SENIORITY_KEYWORDS:
@@ -337,7 +337,7 @@ def _extract_salary(text: str, warnings: list[str]) -> tuple[int, int] | None:
     "$100,000 - $150,000". A JD that mentions dollar amounts in any other
     shape gets a `salary_not_parsed` warning instead of a silent miss.
     Non-annual rates ("$600 - $800 per day") are refused with the same
-    warning — "$600/day" must never persist as a $600,000 annual salary.
+    warning - "$600/day" must never persist as a $600,000 annual salary.
     """
     m = _SALARY_PATTERN.search(text)
     if not m:
@@ -353,7 +353,7 @@ def _extract_salary(text: str, warnings: list[str]) -> tuple[int, int] | None:
         re.IGNORECASE,
     ):
         # A rate period right after the range means this is not an annual
-        # figure — refuse rather than mis-normalise.
+        # figure - refuse rather than mis-normalise.
         warnings.append("salary_not_parsed")
         return None
     low = int(m.group(1).replace(",", ""))

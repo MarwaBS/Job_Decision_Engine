@@ -1,5 +1,5 @@
 # Tooling configuration for the lint/type gates enforced by CI (ci.yml `lint`
-# job). This project is an application, not a package — there is no [project]
+# job). This project is an application, not a package - there is no [project]
 # build section on purpose; deps are pinned in requirements*.txt.
 
 [tool.ruff]

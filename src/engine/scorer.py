@@ -47,19 +47,19 @@ def score(
     Returns:
         DecisionResult with apply_score, verdict, full decision_trace.
 
-    The function is pure — no side effects, no I/O. It is safe to call from a
+    The function is pure - no side effects, no I/O. It is safe to call from a
     test with any Signals instance and get a reproducible result.
     """
     # ── Hard filters (applied BEFORE the weighted sum) ───────────────────────
     #
     # Order matters: input quality is checked FIRST. A dealbreaker inferred
-    # from a JD we could not reliably parse is itself unreliable — firing it
+    # from a JD we could not reliably parse is itself unreliable - firing it
     # would convert garbage input into a confident SKIP. PARSE_FAILURE wins.
 
     if signals.parse_confidence < MIN_PARSE_CONFIDENCE:
         # Input-quality verdict, NOT a fit-signal verdict.
         # apply_score is None because the score is undefined when the JD
-        # could not be parsed — "0.0/100 REVIEW" was misread as "0% match"
+        # could not be parsed - "0.0/100 REVIEW" was misread as "0% match"
         # by users when the truth was "we could not parse the JD".
         return _short_circuit(
             signals=signals,
@@ -117,7 +117,7 @@ def score(
     )
 
 
-# ── Internals (private — never imported by other modules) ────────────────────
+# ── Internals (private - never imported by other modules) ────────────────────
 
 
 def _weighted_contributions(signals: Signals, weights: Weights) -> dict[str, float]:
@@ -135,7 +135,7 @@ def _dominant_signal(weighted: dict[str, float]) -> DominantSignal:
     """Return the signal name with the highest weighted contribution.
 
     Ties are broken by the signal's order of definition in the architecture
-    (skills > experience > semantic > llm > role) — not alphabetical. This
+    (skills > experience > semantic > llm > role) - not alphabetical. This
     matters: determinism requires tie-breaking rules that are specified, not
     inherited from Python's dict ordering.
     """
@@ -182,7 +182,7 @@ def _compute_sensitivity(signals: Signals, weights: Weights) -> DecisionSensitiv
     - `if_skills_boosted_plus_10pct` → boost skills_match by +0.10, clipped to 1.0
     - `if_experience_removed_score`  → set experience_match to 0 (weight kept)
 
-    Weights are unchanged in all three counterfactuals — only the signal
+    Weights are unchanged in all three counterfactuals - only the signal
     value moves. This keeps the replays comparable to the actual score.
     """
 
@@ -224,14 +224,14 @@ def _short_circuit(
 ) -> DecisionResult:
     """Build a DecisionResult for hard-filter paths (dealbreaker / parse failure).
 
-    The weighted sum is NOT computed when a hard filter fires — that's the
+    The weighted sum is NOT computed when a hard filter fires - that's the
     whole point of a hard filter. But we still populate the decision_trace
     with zero-sensitivity placeholders so downstream consumers can treat
     every DecisionResult uniformly.
 
     `apply_score` is `None` on the PARSE_FAILURE path (score is undefined
     when the JD could not be parsed) and 0.0 on the dealbreaker path
-    (score is meaningfully zero — the candidate is filtered out).
+    (score is meaningfully zero - the candidate is filtered out).
     `nearest_threshold_distance` is also undefined for PARSE_FAILURE; we
     record 0.0 there as a placeholder to satisfy the schema bound.
     """

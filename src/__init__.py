@@ -1,4 +1,4 @@
-"""Job Decision Engine — v1.
+"""Job Decision Engine - v1.
 
 Scores a (job description, candidate profile) pair into an explainable
 apply/skip decision via a deterministic weighted-signal scorer with a

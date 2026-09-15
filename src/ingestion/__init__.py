@@ -1,5 +1,5 @@
-"""Ingestion layer — turn raw job-description text (or URLs) into a `Job`.
+"""Ingestion layer - turn raw job-description text (or URLs) into a `Job`.
 
 This layer is REAL. URL scraping is explicitly best-effort
-(LinkedIn / Indeed block most scrapers) — the primary path is text paste.
+(LinkedIn / Indeed block most scrapers) - the primary path is text paste.
 """

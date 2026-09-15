@@ -69,7 +69,7 @@ class TestStructuredHappyPath:
 
     def test_preferred_and_required_disjoint(self):
         """A skill that appeared before the "nice to have" heading should not
-        also appear in preferred — required wins."""
+        also appear in preferred - required wins."""
         j = parse_job(STRUCTURED_JD)
         overlap = set(j.parsed.required_skills) & set(j.parsed.preferred_skills)
         assert overlap == set(), f"overlap found: {overlap}"
@@ -105,7 +105,7 @@ class TestContentHash:
         assert h1 != h2
 
     def test_trailing_whitespace_does_not_change_hash(self):
-        """Normalisation strips trailing whitespace per line — cosmetic
+        """Normalisation strips trailing whitespace per line - cosmetic
         differences must not change the hash, or dedupe breaks."""
         h1 = parse_job(STRUCTURED_JD).content_hash
         # Add trailing spaces on every line
@@ -152,7 +152,7 @@ class TestLowStructureInputs:
         assert 0.15 <= j.parse_confidence < 0.5
 
     def test_adding_structure_raises_confidence(self):
-        """Monotonicity check — adding structure cues must not lower confidence."""
+        """Monotonicity check - adding structure cues must not lower confidence."""
         bare = "We use Python and PyTorch."
         enriched = (
             "Title: ML Engineer\n"
@@ -229,7 +229,7 @@ class TestWorkplace:
 
         Regression guard: `remote` defaulting to False made the
         `on_site_only` dealbreaker hard-SKIP every JD that simply didn't
-        mention workplace — absence of evidence treated as evidence of
+        mention workplace - absence of evidence treated as evidence of
         on-site, contradicting the "don't penalise missing data" principle
         the experience and role-level signals follow.
         """
@@ -256,7 +256,7 @@ class TestSalary:
         assert parse_job("Great role.").parsed.salary_range_usd is None
 
     def test_inverted_salary_range_is_swapped_with_warning(self):
-        """$200k-$100k is transposed, not garbage — a salary range is order-
+        """$200k-$100k is transposed, not garbage - a salary range is order-
         independent, so recover it by swapping to (100k, 200k) rather than
         dropping the only compensation signal, and still flag the inversion."""
         j = parse_job("Salary $200k-$100k")
@@ -264,7 +264,7 @@ class TestSalary:
         assert "salary_range_inverted" in j.parse_warnings
 
     def test_salary_comma_thousands_format(self):
-        """ "$100,000 - $150,000" is the most common US-JD salary shape —
+        """ "$100,000 - $150,000" is the most common US-JD salary shape -
         it must parse, not silently miss."""
         assert parse_job("Salary: $100,000 - $150,000").parsed.salary_range_usd == (
             100000,
@@ -288,7 +288,7 @@ class TestSalary:
         ],
     )
     def test_non_annual_rates_are_refused_not_misread(self, text):
-        """ "$600/day" must never persist as a $600,000 annual salary —
+        """ "$600/day" must never persist as a $600,000 annual salary -
         a rate period right after the range refuses the parse with a
         warning instead of mis-normalising through the k-heuristic."""
         j = parse_job(text)
@@ -304,11 +304,11 @@ class TestPathologicalWhitespace:
         """Regression guard for CodeQL py/polynomial-redos.
 
         Patterns shaped like `\\s*X?\\s*` backtrack polynomially on long
-        whitespace runs — "$100" + 50k spaces took ~75 SECONDS before the
+        whitespace runs - "$100" + 50k spaces took ~75 SECONDS before the
         quantifier-discipline fix and ~30ms after. The parser ingests
         user-pasted text, so this is a real DoS surface, not a curiosity.
         The 5s ceiling is ~100x the fixed cost and ~1/15th the broken
-        cost — loose enough for slow CI runners, tight enough that any
+        cost - loose enough for slow CI runners, tight enough that any
         quadratic regression fails loudly.
         """
         import time
@@ -338,7 +338,7 @@ class TestPathologicalWhitespace:
 
 class TestPurity:
     def test_parser_does_not_import_network_modules(self):
-        """Parser is pure — text in, structure out. Any future ingestion
+        """Parser is pure - text in, structure out. Any future ingestion
         I/O (scraping, uploads) belongs in its own module, never here."""
         from pathlib import Path
 

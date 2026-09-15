@@ -2,14 +2,14 @@
 
 YAML is the dev-only input artefact.
 MongoDB is the runtime state. The YAML file itself never reaches production
-logic — this script is the one-way gate between the two.
+logic - this script is the one-way gate between the two.
 
 Usage:
     python -m scripts.seed_profile              # reads ./profile.yaml
     python -m scripts.seed_profile path/to.yaml # explicit path
 
 The YAML must validate as a `CandidateProfile` (strict Pydantic validation).
-If it doesn't, the script fails loudly — better to refuse to persist bad
+If it doesn't, the script fails loudly - better to refuse to persist bad
 data than to silently load a malformed profile that then misleads every
 subsequent decision.
 """

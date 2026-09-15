@@ -1,14 +1,14 @@
-# Job Decision Engine — Docker image for HuggingFace Spaces.
+# Job Decision Engine - Docker image for HuggingFace Spaces.
 #
 # Reproducibility lock (Step 5 rule #2):
 # - Pinned Python base (python:3.12-slim-bookworm).
 # - Pinned deps: direct pins in requirements.txt (exact ==) + the FULL
 #   transitive universe locked in requirements-lock.txt, applied as a pip
-#   constraints file — the image installs exactly the wheels the test
+#   constraints file - the image installs exactly the wheels the test
 #   suite and CI's pip-audit gate ran against.
 # - Non-root user matching HF Space's uid 1000 requirement.
 # - Model pre-download at build time so first request isn't slow on cold start.
-# - Same output anywhere — local `docker run` and HF Space behave identically.
+# - Same output anywhere - local `docker run` and HF Space behave identically.
 #
 # HF Space convention:
 # - SDK: docker
@@ -47,7 +47,7 @@ RUN pip install --user --no-cache-dir -r requirements.txt -c requirements-lock.t
 # request becomes instant; subsequent image rebuilds reuse the layer.
 # The download path ~/.cache/huggingface/hub is owned by `user`.
 #
-# The revision MUST match src/signals/semantic.py::_MODEL_REVISION — the
+# The revision MUST match src/signals/semantic.py::_MODEL_REVISION - the
 # runtime loads that exact pin, so pre-warming an unpinned `main` would
 # cache the wrong snapshot and re-download the pinned one on every cold
 # start the moment upstream moves. Enforced by
@@ -71,12 +71,12 @@ EXPOSE 7860
 # Streamlit-specific env: disable usage stats collection (slow + noisy on
 # locked-down networks) and disable CORS/XSRF (HF Space proxies in front).
 #
-# fileWatcherType=none: this is a deployed image, not a dev loop — there is
+# fileWatcherType=none: this is a deployed image, not a dev loop - there is
 # nothing to hot-reload. Left at the default ("auto"), Streamlit's source
 # watcher walks every module in sys.modules and calls `hasattr(m, "__path__")`
 # on each. On `transformers` submodules that trips its lazy-import machinery,
 # which tries to import image processors that need `torchvision` (a dep this
-# app deliberately does NOT ship — it uses sentence-transformers/torch only).
+# app deliberately does NOT ship - it uses sentence-transformers/torch only).
 # Each miss floods the logs with a "Examining the path of
 # transformers.models.*.image_processing_* raised: ModuleNotFoundError: No
 # module named 'torchvision'" traceback (~91 of them). Harmless (Streamlit

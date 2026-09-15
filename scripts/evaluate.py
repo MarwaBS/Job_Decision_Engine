@@ -1,11 +1,11 @@
-"""Evaluation script — STUB-enforced until N≥50 real outcomes.
+"""Evaluation script - STUB-enforced until N≥50 real outcomes.
 
 Integrity rule (non-negotiable): until N >= 50 real outcomes, there are
 NO fake metrics, NO simulated outcomes, and NO synthetic "performance
-reporting" — the script is intentionally inert.
+reporting" - the script is intentionally inert.
 
 The framework is built; the metrics are only computed when enough real
-data exists. This is the integrity claim of the whole project — simulating
+data exists. This is the integrity claim of the whole project - simulating
 feedback data to show a "working" evaluation would be worse than no
 evaluation.
 
@@ -85,7 +85,7 @@ def evaluate(store: Store) -> EvaluationResult:
 
     def _fmt(key: str) -> str:
         # "n/a" when a metric is legitimately absent (e.g. no outcome joins
-        # to an APPLY-verdict decision) — never a fabricated 0.000.
+        # to an APPLY-verdict decision) - never a fabricated 0.000.
         return f"{metrics[key]:.3f}" if key in metrics else "n/a"
 
     return EvaluationResult(
@@ -108,7 +108,7 @@ def _compute_metrics(outcomes: list[dict[str, Any]], store: Store) -> dict[str, 
     """Compute the outcome metric set.
 
     - precision_apply: (callbacks + interviews + offers) / outcomes whose
-      originating decision had verdict=APPLY — precision-of-APPLY, per
+      originating decision had verdict=APPLY - precision-of-APPLY, per
       README §6. Omitted when no outcome joins to an APPLY decision.
     - precision_priority: same, for verdict=PRIORITY decisions.
     - interview_rate: interviews / all submitted outcomes
@@ -156,7 +156,7 @@ def _compute_metrics(outcomes: list[dict[str, Any]], store: Store) -> dict[str, 
     # The precision metrics require joining outcomes to their originating
     # decisions to filter by verdict. Outcomes store `decision_id` as the
     # STRING form of the inserted id (db.py returns `str(inserted_id)`),
-    # while Mongo documents carry a raw ObjectId in `_id` — so the index
+    # while Mongo documents carry a raw ObjectId in `_id` - so the index
     # key must be stringified or the join silently never matches on the
     # production path.
     decisions = {str(d.get("_id")): d for d in store.list_decisions(limit=100_000)}

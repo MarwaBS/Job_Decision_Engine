@@ -160,7 +160,7 @@ class TestJobs:
         assert store.count("jobs") == 2
 
 
-# ── Decisions (strict append-only — the headline contract) ───────────────────
+# ── Decisions (strict append-only - the headline contract) ───────────────────
 
 
 class TestDecisionsAppendOnly:
@@ -175,7 +175,7 @@ class TestDecisionsAppendOnly:
         """There must be no way to mutate a decision after insert.
 
         This is enforced by the absence of an update method, not by a
-        try/except — the Protocol surface does not expose one.
+        try/except - the Protocol surface does not expose one.
         """
         store = InMemoryStore()
         # Build the full list of store attributes and assert none of them
@@ -198,7 +198,7 @@ class TestDecisionsAppendOnly:
         assert len(listed) == 3
 
 
-# ── Outcomes (state machine — stages grow, final_stage closes once) ──────────
+# ── Outcomes (state machine - stages grow, final_stage closes once) ──────────
 
 
 class TestOutcomes:
@@ -225,7 +225,7 @@ class TestOutcomes:
         assert store.list_outcomes()[0]["final_stage"] == "OFFER"
 
     def test_retroactive_final_stage_overwrite_forbidden(self):
-        """The integrity constraint — closed outcomes stay closed."""
+        """The integrity constraint - closed outcomes stay closed."""
         store = InMemoryStore()
         did = store.insert_decision(_decision())
         store.insert_outcome(_outcome(did))
@@ -282,12 +282,12 @@ class TestDiagnostics:
             assert store.count(c) == 0
 
 
-# ── MongoStore fakes (hermetic — record what the store asks Mongo to do) ─────
+# ── MongoStore fakes (hermetic - record what the store asks Mongo to do) ─────
 
 
 class _FakeCollection:
     """Records index and write calls. Exposes ONLY the operations MongoStore
-    is supposed to issue — a regression to a different call shape (e.g. the
+    is supposed to issue - a regression to a different call shape (e.g. the
     racy find-then-insert) fails with AttributeError instead of passing."""
 
     def __init__(self) -> None:
@@ -332,12 +332,12 @@ class TestMongoStoreConnectionCheck:
     free-tier cluster, Space egress IP not allow-listed, stale `MONGODB_URI`)
     otherwise sails through construction and only fails at the FIRST query.
     In the Streamlit app that produced a self-contradicting screen: a green
-    "Production / MongoStore (Atlas) — decisions persisted across sessions"
-    banner shown next to a "Profile lookup failed — the store raised" warning,
+    "Production / MongoStore (Atlas) - decisions persisted across sessions"
+    banner shown next to a "Profile lookup failed - the store raised" warning,
     because `streamlit_app.app._build_store`'s `except RuntimeError ->
     InMemoryStore` degradation never fired (the lazy client raised nothing at
     boot). Pinging during construction turns a dead connection into the
-    `RuntimeError` the app already knows how to degrade on — so the UI honestly
+    `RuntimeError` the app already knows how to degrade on - so the UI honestly
     shows "persistence degraded" instead of claiming Atlas it doesn't have.
 
     These tests inject a fake client (no real Mongo) by patching the
@@ -362,7 +362,7 @@ class TestMongoStoreConnectionCheck:
         monkeypatch.setattr(pymongo, "MongoClient", _DeadClient)
         from src.db import MongoStore
 
-        # Today this passes silently (lazy connect, no ping) — the bug.
+        # Today this passes silently (lazy connect, no ping) - the bug.
         # After the fix the failed ping is re-raised as RuntimeError, the
         # exact type `_build_store` catches to fall back to InMemoryStore.
         with pytest.raises(RuntimeError):
@@ -374,13 +374,13 @@ class TestMongoStoreConnectionCheck:
         monkeypatch.setattr(pymongo, "MongoClient", _FakeMongoClient)
         from src.db import MongoStore
 
-        # A healthy ping must NOT raise — the live Atlas path is unaffected.
+        # A healthy ping must NOT raise - the live Atlas path is unaffected.
         MongoStore(uri="mongodb://reachable.example:27017")
 
     @pytest.mark.parametrize("bad_uri", ["mongodb://[::bad", "mongodb+srv://"])
     def test_malformed_uri_degrades_to_runtimeerror(self, bad_uri):
-        """A malformed connection string fails at CONSTRUCTION (URI parse) —
-        `InvalidURI`/`ConfigurationError`/`ValueError` — BEFORE the ping. If it
+        """A malformed connection string fails at CONSTRUCTION (URI parse) -
+        `InvalidURI`/`ConfigurationError`/`ValueError` - BEFORE the ping. If it
         escaped raw, `_build_store`'s `except RuntimeError` would be bypassed
         and the whole app would crash instead of degrading to InMemoryStore.
         It must surface as RuntimeError like every other boot failure.
@@ -403,7 +403,7 @@ class TestMongoStoreDbEnforcedInvariants:
     (`@st.cache_resource`), so racing writers are reachable in production:
 
     - `jobs.content_hash` is unique-indexed, and `upsert_job` is one atomic
-      `$setOnInsert` upsert — same content can never become two documents.
+      `$setOnInsert` upsert - same content can never become two documents.
     - `profiles.active` carries a partial unique index, so an interleaved
       double-activation raises instead of leaving two active profiles.
 
@@ -442,7 +442,7 @@ class TestMongoStoreDbEnforcedInvariants:
         (filter_, update, kwargs) = store._db.jobs.find_one_and_update_calls[0]
         assert filter_ == {"content_hash": "sha256:atomic"}
         # $setOnInsert only: an existing doc is returned untouched, never
-        # overwritten — the append-only contract for the `parsed` payload.
+        # overwritten - the append-only contract for the `parsed` payload.
         assert set(update) == {"$setOnInsert"}
         assert kwargs["upsert"] is True
         # BEFORE returns None on the insert branch, which is every job seen for
@@ -452,7 +452,7 @@ class TestMongoStoreDbEnforcedInvariants:
     def test_index_creation_failure_degrades_to_runtimeerror(self, monkeypatch):
         """If the collection already violates an invariant (e.g. duplicate
         content_hash rows written before the index existed), `create_index`
-        fails — boot must degrade to RuntimeError exactly like an unreachable
+        fails - boot must degrade to RuntimeError exactly like an unreachable
         cluster, so the app falls back honestly instead of crashing."""
         pymongo = pytest.importorskip("pymongo")
         from pymongo.errors import OperationFailure

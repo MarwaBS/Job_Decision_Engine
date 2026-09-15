@@ -8,11 +8,11 @@ These tests prove that:
 3. The demo profile is a valid `CandidateProfile`.
 4. `resolve_profile()` prefers a Mongo-seeded profile when one exists,
    and falls back to the demo only when none is active.
-5. The UI does not contain any code that recomputes a score — enforced
+5. The UI does not contain any code that recomputes a score - enforced
    by a grep-test against the forbidden symbols.
 
 Streamlit's `st.*` calls inside `render_decision` / `render_header` /
-`main` are NOT exercised here — those require a running Streamlit
+`main` are NOT exercised here - those require a running Streamlit
 context. A separate manual smoke (`streamlit run`) covers that path.
 """
 
@@ -98,7 +98,7 @@ class TestDemoProfile:
 
         assert isinstance(DEMO_PROFILE, CandidateProfile)
         assert DEMO_PROFILE.active is True
-        # A sane baseline — the demo must have some skills or the UI
+        # A sane baseline - the demo must have some skills or the UI
         # renders an empty card.
         assert len(DEMO_PROFILE.skills_tech) + len(DEMO_PROFILE.skills_tools) > 0
 
@@ -112,7 +112,7 @@ class TestResolveProfile:
 
         profile, degraded = resolve_profile(InMemoryStore())
         assert profile is DEMO_PROFILE
-        # A clean "no active profile" lookup is NOT a degradation — no
+        # A clean "no active profile" lookup is NOT a degradation - no
         # warning banner should fire for the ordinary demo path.
         assert degraded is False
 
@@ -176,7 +176,7 @@ class TestUIDoesNotRecomputeScores:
         ]
         for needle in forbidden:
             assert needle not in src, (
-                f"streamlit_app/app.py imports {needle!r} — the UI must "
+                f"streamlit_app/app.py imports {needle!r} - the UI must "
                 "not call the scorer directly; it must go through "
                 "orchestrator.evaluate_job()."
             )
@@ -191,7 +191,7 @@ class TestUIDoesNotRecomputeScores:
         ]
         for needle in forbidden_literals:
             assert needle not in src, (
-                f"streamlit_app/app.py contains {needle!r} — the UI must "
+                f"streamlit_app/app.py contains {needle!r} - the UI must "
                 "not redefine or recompute locked config."
             )
 
@@ -202,7 +202,7 @@ class TestUIDoesNotRecomputeScores:
         # The UI may REFERENCE reasoner classes for provider selection,
         # but must not call `.reason(` anywhere.
         assert ".reason(" not in src, (
-            "streamlit_app/app.py calls .reason() directly — the UI must "
+            "streamlit_app/app.py calls .reason() directly - the UI must "
             "only call evaluate_job() which calls the reasoner exactly once."
         )
 
@@ -212,7 +212,7 @@ class TestUIDoesNotRecomputeScores:
         `MockEmbeddingProvider` produces hash-based embeddings whose
         cosine similarity differs from the real sentence-transformer's.
         Using it in the UI path would change `semantic_similarity` and
-        therefore `apply_score` — creating two different score
+        therefore `apply_score` - creating two different score
         behaviours depending on deployment environment.
 
         The only correct provider in the UI is `SentenceTransformerProvider`.
@@ -223,7 +223,7 @@ class TestUIDoesNotRecomputeScores:
         src = self._app_source()
         assert "MockEmbeddingProvider" not in src, (
             "streamlit_app/app.py references MockEmbeddingProvider. "
-            "The UI must never fall back to the mock — it changes "
+            "The UI must never fall back to the mock - it changes "
             "semantic_similarity and therefore the score. "
             "If sentence-transformers is unavailable at runtime, the "
             "app should fail loudly, not silently score differently."
@@ -327,7 +327,7 @@ class TestClaimHonesty:
         ]
         for needle in forbidden:
             assert needle not in src, (
-                f"streamlit_app/app.py claims {needle!r} — false when "
+                f"streamlit_app/app.py claims {needle!r} - false when "
                 "OPENAI_API_KEY is set (live llm_confidence, weight 0.25, "
                 "shifts apply_score by up to 25 points). Scope the claim "
                 "to the deterministic signals instead."

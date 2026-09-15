@@ -1,4 +1,4 @@
-"""Streamlit UI — presentation layer only.
+"""Streamlit UI - presentation layer only.
 
 This package is a thin rendering layer over a deterministic decision
 engine. It does not

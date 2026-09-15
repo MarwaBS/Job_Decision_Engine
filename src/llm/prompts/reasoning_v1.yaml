@@ -36,7 +36,7 @@ system: |
     candidate's profile. Not generic praise.
   - gaps: real missing or weak areas. Be specific; cite JD requirements the
     candidate doesn't demonstrably have.
-  - risks: concerns about fit beyond skill gaps — e.g., over-qualification,
+  - risks: concerns about fit beyond skill gaps - e.g., over-qualification,
     level mismatch, unstated must-haves, culture/working-arrangement conflicts.
   - llm_confidence: your calibrated confidence that this candidate should
     apply. 0 = definitely skip, 1 = definitely apply. Use conservative
@@ -47,7 +47,7 @@ system: |
     "Highlight your enthusiasm" is bad.
 
   Every bullet must be <=120 characters. Longer bullets are rejected by the
-  schema validator and cost a retry — don't waste tokens.
+  schema validator and cost a retry - don't waste tokens.
 
 user: |
   ## Job description (parsed)
@@ -70,7 +70,7 @@ user: |
   Domain: {profile.skills_domain}
   Target roles: {profile.target_roles}
 
-  ## Deterministic signals (already computed — do NOT recompute)
+  ## Deterministic signals (already computed - do NOT recompute)
   skills_match: {signals.skills_match}
   experience_match: {signals.experience_match}
   semantic_similarity: {signals.semantic_similarity}

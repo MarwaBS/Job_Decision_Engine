@@ -97,7 +97,7 @@ class TestSignals:
             Signals(**payload)
 
     def test_signals_frozen(self):
-        """Signals are immutable — crossing a module boundary shouldn't allow mutation."""
+        """Signals are immutable - crossing a module boundary shouldn't allow mutation."""
         s = Signals(
             skills_match=0.5,
             experience_match=0.5,
