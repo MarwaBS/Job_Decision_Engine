@@ -378,7 +378,8 @@ spec says. Three layers of evidence in the repo:
   build all gate the deploy. The Docker image installs against the same
   `requirements-lock.txt` CI tests and audits, so the shipped wheels are
   the tested wheels. Branch protection on `main` requires the privacy audit,
-  test and lint jobs; the image build gates the deploy, not the merge.
+  test, lint and deploy jobs (deploy is skipped on pull requests); the
+  image build gates the deploy, not the merge.
 
 The README itself is contract-tested - formula values quoted here must
 match `src/config.py` exactly, and both examples' hermetically-computable
