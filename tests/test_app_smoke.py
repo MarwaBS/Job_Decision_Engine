@@ -341,14 +341,21 @@ class TestClaimHonesty:
         CI, and HuggingFace Spaces' were falsifiable: the LLM signal is live
         (stochastic) whenever a key is present, and no HF-side 1e-9
         verification exists (tests/ are excluded from the Space image by
-        .dockerignore). The README must scope both claims."""
+        .dockerignore). The 1e-9 asserts compare scorer arithmetic with
+        hand-computed values under a mocked embedder, so they show accuracy,
+        not run-to-run determinism of the real model. The README must scope
+        all three claims."""
         readme = self._readme()
-        assert "Same input → same output, every time." not in readme
+        assert "same output, every time" not in readme
         assert "local, CI, and HuggingFace Spaces" not in readme
+        assert "verified to 1e-9 in local and CI test runs" not in readme
+        assert "no matter who runs it or where" not in readme
+        assert "on any machine" not in readme
+        assert "determinism-verified" not in readme
         assert "job-offer scoring engine" not in readme  # it scores JDs
         # Corrected scoping must be present.
         assert "LLM-absent path" in readme
-        assert "verified to 1e-9 in local and CI test runs" in readme
+        assert "with the embedding model mocked" in readme
 
     def test_readme_grep_test_count_matches_reality(self):
         """README §3 cites the number of UI grep-tests; keep it equal to the

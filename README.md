@@ -11,9 +11,9 @@ license: mit
 
 ## What this is
 
-A job-description scoring engine with a deterministic core. On the default LLM-absent path (the public demo): same input → same output, every time.
+A job-description scoring engine with a deterministic core. On the default LLM-absent path (the public demo) nothing is sampled, so the same input gives the same output on the same machine.
 
-Determinism of that path is verified to 1e-9 in local and CI test runs. With an OpenAI key set, one bounded signal (25% of the score) comes from a live LLM and can shift the result - the UI banner always tells you which path is live.
+CI checks the scorer's arithmetic to 1e-9 against hand-computed scores, with the embedding model mocked. With an OpenAI key set, one bounded signal (25% of the score) comes from a live LLM and can shift the result - the UI banner always tells you which path is live.
 
 **[Live demo](https://huggingface.co/spaces/MarwaBS/job-decision-engine)**
 
@@ -28,7 +28,7 @@ Stack: Pydantic v2 · sentence-transformers · OpenAI · MongoDB · Docker · Gi
 
 [![CI](https://github.com/MarwaBS/Job_Decision_Engine/actions/workflows/ci.yml/badge.svg)](https://github.com/MarwaBS/Job_Decision_Engine/actions/workflows/ci.yml)
 ![Tests](https://img.shields.io/badge/tests-300%2B%20passing-brightgreen)
-![Determinism](https://img.shields.io/badge/determinism-verified%201e--9-blue)
+![Scorer arithmetic](https://img.shields.io/badge/scorer%20arithmetic-checked%20to%201e--9-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 [![Live demo](https://img.shields.io/badge/demo-Hugging%20Face-yellow?logo=huggingface&logoColor=white)](https://huggingface.co/spaces/MarwaBS/job-decision-engine)
 
@@ -53,7 +53,7 @@ own wording is stored rather than regenerated, because it is stochastic.
 
 **What:** A deterministic engine that triages job descriptions into **PRIORITY / APPLY / REVIEW / SKIP**. The verdict comes from an explicit weighted formula whose five signals include one LLM confidence score, bounded at 25% of the weight; the model contributes to the number but cannot decide the verdict alone and cannot overturn a dealbreaker.
 
-**Why it's built this way:** on the LLM-absent path (the public demo), same JD + same profile → same verdict, every time (deterministic scoring path verified to `1e-9` in local and CI test runs). With OpenAI enabled, the single LLM signal is bounded at 25% weight and captured per-decision. Every decision is logged with its exact signals + weights so any past verdict can be re-derived - no black-box "AI tool" that answers differently each run with nothing recorded.
+**Why it's built this way:** on the LLM-absent path (the public demo), same JD + same profile → same verdict on the same machine (scorer arithmetic checked to `1e-9` in CI). With OpenAI enabled, the single LLM signal is bounded at 25% weight and captured per-decision. Every decision is logged with its exact signals + weights so any past verdict can be re-derived - no black-box "AI tool" that answers differently each run with nothing recorded.
 
 ```mermaid
 flowchart LR
@@ -61,7 +61,7 @@ flowchart LR
   ORC --> P["Parser<br/>parse-confidence gate"]
   ORC --> SIG["Signals<br/>skills · experience<br/>semantic · role"]
   ORC --> LLM["LLM reasoning<br/>bounded ≤25 pts + explanation"]
-  P --> SC["Scorer<br/>pure · deterministic to 1e-9"]
+  P --> SC["Scorer<br/>pure · checked to 1e-9"]
   SIG --> SC
   LLM --> SC
   SC --> V["Verdict<br/>PRIORITY / APPLY / REVIEW / SKIP"]
@@ -93,7 +93,7 @@ things I should have skipped - because my own filter drifts as I get tired.
 
 The system I needed:
 
-- **Deterministic** - same JD + same profile → same verdict on the LLM-absent path, no matter who runs it or where; any LLM contribution bounded and disclosed
+- **Deterministic** - same JD + same profile → same verdict on the LLM-absent path on the same machine; any LLM contribution bounded and disclosed
 - **Auditable** - every decision logged with the exact signal values + weights it was scored under, so any past verdict can be re-derived
 - **Honest about its limits** - flags structurally-bad JDs for manual review instead of pretending to score them; refuses to fake performance metrics until real outcomes accumulate
 
@@ -368,7 +368,7 @@ spec says. Three layers of evidence in the repo:
   pre-warm (a test fails if the two pins drift), and same-input →
   same-output is asserted at the extraction, signal, and scorer layers.
   `python -m scripts.demo_example` reproduces the README's Example B
-  numbers from source on any machine. (LLM output is stochastic but
+  numbers from source. (LLM output is stochastic but
   bounded at 25% weight and captured per-decision for replay.)
 - **CI-enforced architectural invariants** in `.github/workflows/ci.yml`:
   privacy audit · hermetic test suite · ruff + mypy lint and type gates +
