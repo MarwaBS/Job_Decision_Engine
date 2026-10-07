@@ -163,7 +163,12 @@ def _score_to_verdict(apply_score: float, thresholds: Thresholds) -> Verdict:
         apply <= score < priority → APPLY
         review <= score < apply   → REVIEW
         score < review            → SKIP
+
+    The score is rounded to 9 decimal places before it is compared.
     """
+    # Float summation lands an exact edge just below it (65 -> 64.99999999999999);
+    # that drift is around 1e-14, far below the 9th decimal.
+    apply_score = round(apply_score, 9)
     if apply_score >= thresholds.priority:
         return Verdict.PRIORITY
     if apply_score >= thresholds.apply_:

@@ -21,8 +21,8 @@ updates:
     # Version updates off. Dependabot counts every explicitly defined package as
     # direct, so an allow filter cannot tell requirements.txt apart from the
     # transitive set in requirements-lock.txt, and it patched single lock lines.
-    # The lock is regenerated whole, per its header. Security PRs are not
-    # subject to this limit and still arrive.
+    # The lock is regenerated whole, per its header. Advisories against it
+    # surface through the weekly pip-audit run in ci.yml.
     open-pull-requests-limit: 0
     commit-message:
       prefix: "chore(deps)"

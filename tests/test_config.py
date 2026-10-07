@@ -83,8 +83,8 @@ class TestVersions:
     def test_weights_version_matches_thresholds_version(self):
         """Locked convention: v1 weights and v1 thresholds ship together.
 
-        If one retunes, the other is re-audited. This test catches the case
-        where a contributor bumps one version without revisiting the other.
+        Weights and thresholds decide verdicts together, so bumping one
+        version without the other fails here.
         """
         assert WEIGHTS_VERSION == THRESHOLDS_VERSION
 

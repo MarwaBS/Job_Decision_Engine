@@ -31,7 +31,9 @@ from src.schemas import Thresholds, Weights
 # parse-confidence hard filter now precedes the dealbreaker filter. Same JD +
 # profile can score differently than under 0.1.0 — hence the bump (decisions
 # persist the engine_version they were scored with).
-ENGINE_VERSION: str = "0.2.0"
+# 0.2.1: verdict bands compare the score rounded to 9 places, so a score that
+# float summation lands just below a threshold no longer drops a band.
+ENGINE_VERSION: str = "0.2.1"
 WEIGHTS_VERSION: str = "v1.0"
 THRESHOLDS_VERSION: str = "v1.0"
 
