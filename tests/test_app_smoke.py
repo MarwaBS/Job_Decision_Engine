@@ -375,12 +375,13 @@ class TestClaimHonesty:
         assert "~90 MB" in self._readme()
 
     def test_suite_runtime_claim_is_honest(self):
-        """The hermetic suite measures ~5-9 s on a developer laptop,
-        not '~1-2 seconds'. (Deliberately count-free: a hardcoded test
-        count here would rot the moment the suite grows.)"""
+        """The README states an upper bound rather than a measured range,
+        which drifts with the machine and its load. (Deliberately count-free:
+        a hardcoded test count here would rot the moment the suite grows.)"""
         readme = self._readme()
         assert "~1–2 seconds" not in readme
-        assert "~5–10 seconds" in readme
+        assert "~5\u201310 seconds" not in readme
+        assert "under 10 seconds" in readme
 
     def test_collected_suite_meets_the_published_floor(self):
         """The README and the badge publish 300+ tests. An exact count

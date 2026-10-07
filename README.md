@@ -360,8 +360,8 @@ spec says. Three layers of evidence in the repo:
   like "Requirements" must never produce phantom skills), every signal,
   persistence (with append-only contract), the LLM Protocol seam (with
   retry-or-fallback AND transport-failure wrapping), the orchestrator
-  end-to-end, and the README contract itself. Runtime: ~5–10 seconds on
-  a developer laptop. No network, no model downloads.
+  end-to-end, and the README contract itself. Runtime: under 10 seconds
+  on a developer laptop. No network, no model downloads.
 - **Determinism by construction, enforced in tests.** The scorer is a
   pure function (no I/O imports - grep-tested), the embedding model is
   pinned to an exact revision in both the runtime and the Docker
