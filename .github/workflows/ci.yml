@@ -48,7 +48,7 @@ env:
 
 jobs:
   privacy-audit:
-    name: Privacy audit — no private artefacts in git
+    name: Privacy audit - no private artefacts in git
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
