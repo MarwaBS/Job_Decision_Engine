@@ -197,6 +197,19 @@ class TestVerdictBoundaries:
     pin explicit signal values and assert the hand-computed score + verdict.
     """
 
+    def test_exact_band_edge_lands_in_the_upper_band(self):
+        # Exactly 65 in rational arithmetic, 64.99999999999999 as a float sum.
+        r = score(
+            Signals(
+                skills_match=0.1,
+                experience_match=0.7,
+                semantic_similarity=0.95,
+                llm_confidence=0.95,
+                role_level_fit=1.0,
+            )
+        )
+        assert r.verdict == Verdict.APPLY
+
     @pytest.mark.parametrize(
         "signals,expected_score,expected_verdict",
         [
