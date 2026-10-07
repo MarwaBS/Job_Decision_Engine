@@ -371,14 +371,14 @@ spec says. Three layers of evidence in the repo:
   numbers from source on any machine. (LLM output is stochastic but
   bounded at 25% weight and captured per-decision for replay.)
 - **CI-enforced architectural invariants** in `.github/workflows/ci.yml`:
-  four-job gate (privacy audit · hermetic test suite · ruff + mypy lint
-  and type gates + `pip-audit` over the full transitive dependency lock ·
-  auto-deploy to HF Space). Privacy audit fails if any internal artefact
-  leaks into git. Tests, lint, types, and the dependency audit all gate
-  the deploy. The Docker image installs against the same
+  privacy audit · hermetic test suite · ruff + mypy lint and type gates +
+  `pip-audit` over the full transitive dependency lock · Docker image
+  build · auto-deploy to HF Space. Privacy audit fails if any internal artefact
+  leaks into git. Tests, lint, types, the dependency audit and the image
+  build all gate the deploy. The Docker image installs against the same
   `requirements-lock.txt` CI tests and audits, so the shipped wheels are
-  the tested wheels. Branch protection on `main` enforces the whole
-  pipeline.
+  the tested wheels. Branch protection on `main` requires the privacy audit,
+  test and lint jobs; the image build gates the deploy, not the merge.
 
 The README itself is contract-tested - formula values quoted here must
 match `src/config.py` exactly, and both examples' hermetically-computable
