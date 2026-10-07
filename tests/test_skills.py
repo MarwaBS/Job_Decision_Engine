@@ -81,7 +81,7 @@ class TestExtraction:
         ],
     )
     def test_no_substring_phantom_skills(self, text: str, phantom: str):
-        """Adversarial regression guard for the boundary-anchoring bug.
+        """An alias must not match inside an ordinary word.
 
         Aliases compiled WITHOUT word boundaries turned ordinary JD prose
         into phantom skills ("RequiremenTS" → typescript), silently
